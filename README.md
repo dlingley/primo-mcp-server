@@ -1,8 +1,8 @@
 # Primo MCP Server
 
-MCP server for Ex Libris Primo library discovery. It searches university
-catalogues, subscribed databases, articles, books, videos, and database
-records through the Primo API.
+MCP server for Singapore Management University library discovery via Ex
+Libris Primo. It searches SMU catalogue records, subscribed databases,
+articles, books, videos, and database records through the Primo API.
 
 This fork includes hardened scope handling, direct Primo record/search links,
 and Unicode-safe handling for Chinese records.
@@ -79,7 +79,8 @@ Recommended caller policy:
 
 ## SMU Configuration
 
-Create a `.env` file with:
+SMU is the default configuration for this fork. You can run without a `.env`
+file for SMU, or create one to make the settings explicit:
 
 ```env
 PRIMO_BASE_URL=https://search.library.smu.edu.sg/primaws/rest/pub
@@ -103,14 +104,15 @@ PRIMO_DEFAULT_RESULTS=10
 
 ## Configuration Reference
 
-Defaults are set for UWA. Override via environment variables:
+Defaults are set for SMU. Other institutions can override these values with
+environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PRIMO_BASE_URL` | `https://onesearch.library.uwa.edu.au/primaws/rest/pub` | Primo API base URL |
+| `PRIMO_BASE_URL` | `https://search.library.smu.edu.sg/primaws/rest/pub` | Primo API base URL |
 | `PRIMO_DISCOVERY_BASE_URL` | Derived from `PRIMO_BASE_URL` | Primo web app base URL for record and search links |
-| `PRIMO_VID` | `61UWA_INST:NDE_UWA` | Primo view ID |
-| `PRIMO_INSTITUTION_NAME` | `UWA` | Display name |
+| `PRIMO_VID` | `65SMU_INST:SMU_NUI` | Primo view ID |
+| `PRIMO_INSTITUTION_NAME` | `SMU` | Display name |
 | `PRIMO_TAB_EVERYTHING` | `Everything` | Primo tab for combined local and CDI searches |
 | `PRIMO_TAB_CATALOGUE` | `Catalogue` | Primo tab for local catalogue searches |
 | `PRIMO_TAB_BOOKS_VIDEOS` | `booksandvideos` | Primo tab for books/videos searches |

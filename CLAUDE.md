@@ -27,7 +27,7 @@ pytest tests/ -v
 
 ## Configuration
 
-Defaults are UWA. Override via environment variables:
+Defaults are SMU (Singapore Management University). Override via environment variables:
 - PRIMO_BASE_URL -- Primo API base URL
 - PRIMO_VID -- View ID for the institution
 - PRIMO_INSTITUTION_NAME -- Display name
