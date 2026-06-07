@@ -17,7 +17,9 @@ and Unicode-safe handling for Chinese records.
 - Export records to BibTeX, RIS, or UTF-8-sig CSV
 - Reject invalid search scopes instead of silently falling back to Everything
 
-## Installation
+## Quick Start for SMU
+
+Clone and install the fork:
 
 ```bash
 git clone https://github.com/aarontaycheehsien/primo-mcp-server.git
@@ -25,16 +27,7 @@ cd primo-mcp-server
 pip install -e .
 ```
 
-For development and tests:
-
-```bash
-pip install -e ".[dev]"
-pytest tests/ -v
-```
-
-## Register in Claude Code
-
-Add to `~/.claude/settings.json`:
+Register it in Claude Code by adding this to `~/.claude/settings.json`:
 
 ```json
 {
@@ -49,6 +42,13 @@ Add to `~/.claude/settings.json`:
 
 Restart Claude Code. The tools will appear as `mcp__primo__primo_search`,
 `mcp__primo__primo_get_record`, and related tool names.
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest tests/ -v
+```
 
 ## Tools
 

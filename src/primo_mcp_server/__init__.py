@@ -1,4 +1,4 @@
-"""Primo MCP Server -- search university library catalogues via MCP."""
+"""SMU Primo MCP Server -- search Singapore Management University Library."""
 
 __version__ = "0.1.0"
 

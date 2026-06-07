@@ -1,6 +1,10 @@
 # Primo MCP Server
 
-MCP server for searching university library catalogues via the Ex Libris Primo discovery API.
+SMU-focused MCP server for searching Singapore Management University Library
+Primo catalogue, articles, databases, books, videos, and records through the Ex
+Libris Primo discovery API.
+
+This is the canonical agent guidance file for this fork.
 
 ## Architecture
 
@@ -27,10 +31,17 @@ pytest tests/ -v
 
 ## Configuration
 
-Defaults are SMU (Singapore Management University). Override via environment variables:
+Defaults are SMU (Singapore Management University). Other institutions can
+override these values with environment variables, but public documentation and
+agent behaviour should remain SMU-first for this fork.
+
 - PRIMO_BASE_URL -- Primo API base URL
+- PRIMO_DISCOVERY_BASE_URL -- Primo web app base URL for search and record links
 - PRIMO_VID -- View ID for the institution
 - PRIMO_INSTITUTION_NAME -- Display name
+- PRIMO_TAB_CATALOGUE / PRIMO_SCOPE_LOCAL -- SMU catalogue search
+- PRIMO_TAB_EVERYTHING / PRIMO_SCOPE_COMBINED -- SMU catalogue plus CDI search
+- PRIMO_TAB_BOOKS_VIDEOS / PRIMO_SCOPE_BOOKS_VIDEOS -- SMU books/videos search
 
 ## Search Scope Policy
 

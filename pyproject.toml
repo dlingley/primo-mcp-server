@@ -5,12 +5,15 @@ build-backend = "hatchling.build"
 [project]
 name = "primo-mcp-server"
 version = "0.1.0"
-description = "MCP server for Ex Libris Primo library discovery -- search university catalogue and subscribed databases via the Model Context Protocol"
+description = "SMU-focused MCP server for searching Singapore Management University Library Primo catalogue, articles, databases, and records."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
     { name = "Gehe Haridas" },
+]
+maintainers = [
+    { name = "Aaron Tay Chee Hsien" },
 ]
 dependencies = [
     "mcp>=1.26.0",
@@ -18,6 +21,12 @@ dependencies = [
     "pydantic>=2.12.0",
     "pydantic-settings>=2.13.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/aarontaycheehsien/primo-mcp-server"
+Repository = "https://github.com/aarontaycheehsien/primo-mcp-server"
+Issues = "https://github.com/aarontaycheehsien/primo-mcp-server/issues"
+Original = "https://github.com/geheharidas/primo-mcp-server"
 
 [project.optional-dependencies]
 dev = [
