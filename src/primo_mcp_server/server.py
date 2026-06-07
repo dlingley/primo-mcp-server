@@ -33,9 +33,18 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[dict]:
 mcp = FastMCP(
     "primo",
     instructions=(
-        "Search university library catalogues and subscribed databases "
-        "(ProQuest, Elsevier, Crossref, Gale, Springer, IEEE, etc.) "
+        "Search university library catalogues and holdings "
         "via the Ex Libris Primo discovery API. "
+        "Scope selection policy: when asked to search the catalogue, call "
+        "primo_search with scope='catalogue' first; if that returns no "
+        "results and the user did not ask for catalogue-only results, retry "
+        "with scope='everything' and say that you widened the search. "
+        "For books, databases, and videos, default to scope='catalogue'. "
+        "For articles, default to scope='everything'. For confirmation "
+        "requests about whether the library has, owns, subscribes to, or "
+        "provides access to a title, use Primo as the evidence source and "
+        "do not use websites, LibGuides, or general web pages unless the "
+        "user explicitly asks for web confirmation. "
         "Use primo_search for queries, primo_get_record for full details, "
         "primo_suggest for autocomplete, primo_cite for citations, "
         "and primo_export for BibTeX/RIS/CSV export."
@@ -47,6 +56,11 @@ mcp = FastMCP(
 def _get_client(ctx: Context) -> PrimoClient:
     """Extract the PrimoClient from the lifespan context."""
     return ctx.request_context.lifespan_context["client"]
+
+
+def _get_config(ctx: Context) -> PrimoConfig:
+    """Extract the PrimoConfig from the lifespan context."""
+    return ctx.request_context.lifespan_context["config"]
 
 
 # ---------------------------------------------------------------------------
@@ -69,14 +83,26 @@ async def primo_search(
 ) -> str:
     """Search the university library catalogue and subscribed databases.
 
+    Scope selection policy for callers:
+    - When asked to search the catalogue, use scope="catalogue" first. If
+      that returns no results and the user did not ask for catalogue-only
+      results, retry with scope="everything" and say that the search was
+      widened.
+    - For books, databases, and videos, default to scope="catalogue".
+    - For articles, default to scope="everything".
+    - For confirmation requests about whether the library has, owns,
+      subscribes to, or provides access to a title, use Primo as the
+      evidence source. Do not rely on websites, LibGuides, or general web
+      pages unless the user explicitly asks for web confirmation.
+
     Args:
         query: Search terms (e.g. "machine learning entrepreneurship").
         field: Search field -- "any" (default), "title", "creator", "sub" (subject), "isbn", "oclcnum".
-        scope: "everything" for local catalogue + subscribed databases, "catalogue" for local only.
+        scope: "everything" for local catalogue + subscribed databases, "catalogue" for local only, "books_videos" for the books/videos scope.
         sort_by: "rank" (relevance, default), "date" (newest first), "title" (alphabetical).
         limit: Number of results to return (1-50, default 10).
         offset: Pagination offset (default 0). Use to get the next page of results.
-        resource_type: Filter by type -- "books", "articles", "journals", "dissertations", "conference_proceedings".
+        resource_type: Filter by type -- "books", "articles", "journals", "databases", "videos", "dissertations", "conference_proceedings".
         date_from: Start year filter (YYYY format, e.g. "2020").
         date_to: End year filter (YYYY format, e.g. "2025").
         peer_reviewed: Set to true to show only peer-reviewed items.
@@ -86,6 +112,7 @@ async def primo_search(
     """
     try:
         client = _get_client(ctx)
+        config = _get_config(ctx)
         response = await client.search(
             query=query,
             field=field,
@@ -98,7 +125,19 @@ async def primo_search(
             date_to=date_to,
             peer_reviewed=peer_reviewed,
         )
-        return format_search_results(response, query, offset)
+        return format_search_results(
+            response,
+            query,
+            offset,
+            config=config,
+            field=field,
+            scope=scope,
+            sort_by=sort_by,
+            resource_type=resource_type,
+            date_from=date_from,
+            date_to=date_to,
+            peer_reviewed=peer_reviewed,
+        )
     except PrimoAPIError as e:
         return f"Error searching Primo: {e}"
     except Exception as e:
@@ -124,6 +163,7 @@ async def primo_get_record(ctx: Context, record_id: str) -> str:
     """
     try:
         client = _get_client(ctx)
+        config = _get_config(ctx)
         record = await client.get_record(record_id)
         if record is None:
             return (
@@ -131,7 +171,7 @@ async def primo_get_record(ctx: Context, record_id: str) -> str:
                 "It may have been removed, or the ID may be incorrect. "
                 "Try searching again with primo_search."
             )
-        return format_record_detail(record)
+        return format_record_detail(record, config=config)
     except PrimoAPIError as e:
         return f"Error fetching record: {e}"
     except Exception as e:

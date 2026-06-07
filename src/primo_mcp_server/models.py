@@ -7,6 +7,8 @@ everything into predictable types.
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, field_validator
 
 
@@ -23,6 +25,75 @@ def _first_or_empty(v: str | list[str] | None) -> str:
     """Extract the first element, or return empty string."""
     items = _to_list(v)
     return items[0] if items else ""
+
+
+# MARC relator terms that Primo appends to display names, e.g.
+# "Mueller, John, 1958- author." -- stripped for clean author display.
+_RELATORS = (
+    "joint author", "issuing body", "edited by", "author", "authors",
+    "editor", "editors", "narrator", "translator", "translators",
+    "illustrator", "compiler", "contributor", "writer", "interviewer",
+    "interviewee", "performer", "director", "producer", "composer",
+    "photographer",
+)
+# Require the trailing period that Primo always appends ("author.", "editor."),
+# so a genuine name segment that happens to be a relator word is left intact.
+_RELATOR_RE = re.compile(
+    r"[,\s]+(?:" + "|".join(re.escape(r) for r in _RELATORS) + r")\.\s*$",
+    re.IGNORECASE,
+)
+_SUBFIELD_RE = re.compile(r"\$\$([A-Za-z])([^$]*)")
+_VALUE_SEPARATORS_RE = re.compile(r"[;\uff1b]")
+
+
+def _strip_subfields(value: str) -> str:
+    """Drop Primo PNX '$$X' subfield codes, returning the human display text.
+
+    Primo encodes subfields as '<display>$$Q<normalised>$$...'. The display
+    text precedes the first '$$'; purely coded values fall back to the
+    $$Q/$$V subfield content.
+    """
+    if not value or "$$" not in value:
+        return value.strip() if value else ""
+    head = value.split("$$", 1)[0].strip()
+    if head:
+        return head
+    matches = _SUBFIELD_RE.findall(value)
+    for preferred in ("N", "Q", "V", "a", "T", "L", "F"):
+        for code, text in matches:
+            if code == preferred and text.strip():
+                return text.strip()
+    for _code, text in matches:
+        if text.strip():
+            return text.strip()
+    return value.strip()
+
+
+def _clean_names(
+    raw_values: list[str],
+    *,
+    split: bool = True,
+    strip_relators: bool = True,
+) -> list[str]:
+    """Normalise name fields.
+
+    For display.creator/contributor (split=True, strip_relators=True) this
+    splits semicolon-joined entries and removes PNX subfield codes ($$Q...)
+    and trailing MARC relator terms. For the already-clean structured
+    addata.au/addau lists, pass split=False, strip_relators=False so only
+    defensive subfield stripping is applied.
+    """
+    names: list[str] = []
+    for raw in raw_values:
+        base = _strip_subfields(raw)
+        for part in (_VALUE_SEPARATORS_RE.split(base) if split else [base]):
+            name = part.strip()
+            if strip_relators:
+                name = _RELATOR_RE.sub("", name)
+            name = name.strip().rstrip(",").strip()
+            if name:
+                names.append(name)
+    return names
 
 
 class PrimoRecord(BaseModel):
@@ -63,6 +134,7 @@ class PrimoRecord(BaseModel):
     peer_reviewed: bool = False
     ris_type: str = ""
     authors_structured: list[str] = []
+    additional_authors: list[str] = []
 
     # Availability
     fulltext_available: bool = False
@@ -90,23 +162,27 @@ class PrimoRecord(BaseModel):
                 doi = ident.split("DOI:")[-1].strip()
                 break
 
-        # Parse creators -- display.creator is often a single semicolon-separated string
-        raw_creators = _to_list(display.get("creator"))
-        creators = []
-        for c in raw_creators:
-            creators.extend(part.strip() for part in c.split(";") if part.strip())
+        # Parse creators -- display.creator is often a single semicolon-separated
+        # string and carries $$ subfield codes plus trailing relator terms.
+        creators = _clean_names(_to_list(display.get("creator")))
 
         # Subjects -- may be semicolon-separated
         raw_subjects = _to_list(display.get("subject"))
         subjects = []
         for s in raw_subjects:
-            subjects.extend(part.strip() for part in s.split(";") if part.strip())
+            for part in _VALUE_SEPARATORS_RE.split(s):
+                p = _strip_subfields(part)
+                if p:
+                    subjects.append(p)
 
         # Keywords
         raw_keywords = _to_list(display.get("keyword"))
         keywords = []
         for k in raw_keywords:
-            keywords.extend(part.strip() for part in k.split(";") if part.strip())
+            for part in _VALUE_SEPARATORS_RE.split(k):
+                p = _strip_subfields(part)
+                if p:
+                    keywords.append(p)
 
         # Peer review
         lds50 = _to_list(display.get("lds50"))
@@ -126,12 +202,12 @@ class PrimoRecord(BaseModel):
                 else (control.get("sourceid", [None]) or [None])[0]
             ),
             source_system=_first_or_empty(control.get("sourcesystem")),
-            title=_first_or_empty(display.get("title")),
+            title=_strip_subfields(_first_or_empty(display.get("title"))),
             resource_type=_first_or_empty(display.get("type")),
             language=_first_or_empty(display.get("language")),
             creators=creators,
-            contributors=_to_list(display.get("contributor")),
-            publisher=_first_or_empty(display.get("publisher")),
+            contributors=_clean_names(_to_list(display.get("contributor"))),
+            publisher=_strip_subfields(_first_or_empty(display.get("publisher"))),
             creation_date=_first_or_empty(display.get("creationdate"))
                 or _first_or_empty(addata.get("date")),
             source_label=_first_or_empty(display.get("source")),
@@ -140,24 +216,57 @@ class PrimoRecord(BaseModel):
             snippet=_first_or_empty(display.get("snippet")),
             subjects=subjects,
             keywords=keywords,
-            is_part_of=_first_or_empty(display.get("ispartof")),
+            is_part_of=_strip_subfields(_first_or_empty(display.get("ispartof"))),
             identifiers=identifiers,
             doi=doi,
             isbn=_to_list(addata.get("isbn")),
             issn=_to_list(addata.get("issn")),
-            journal_title=_first_or_empty(addata.get("jtitle")),
+            journal_title=_strip_subfields(_first_or_empty(addata.get("jtitle"))),
             volume=_first_or_empty(addata.get("volume")),
             issue=_first_or_empty(addata.get("issue")),
             start_page=_first_or_empty(addata.get("spage")),
             end_page=_first_or_empty(addata.get("epage")),
             peer_reviewed=peer_reviewed,
             ris_type=_first_or_empty(addata.get("ristype")),
-            authors_structured=_to_list(addata.get("au")),
+            authors_structured=_clean_names(
+                _to_list(addata.get("au")), split=False, strip_relators=False
+            ),
+            additional_authors=_clean_names(
+                _to_list(addata.get("addau")), split=False, strip_relators=False
+            ),
             fulltext_available="fulltext" in str(delivery.get("fulltext", "")),
             delivery_category=_first_or_empty(delivery.get("delcategory")),
             score=score,
             context=doc.get("context", ""),
         )
+
+    @property
+    def display_authors(self) -> list[str]:
+        """Best available author list, in order of preference.
+
+        Primo splits names across several fields: structured authors
+        (addata.au) and additional authors/editors (addata.addau) are clean,
+        while display.creator/contributor carry subfield noise. Falling back
+        through them avoids "Unknown author" when only an edited-book editor
+        list (addau) or a contributor is present.
+        """
+        return (
+            self.authors_structured
+            or self.additional_authors
+            or self.creators
+            or self.contributors
+        )
+
+    @property
+    def year(self) -> str:
+        """Four-digit year extracted from creation_date.
+
+        Primo dates come in many shapes -- "2021", "2021-03", "c1996",
+        "[2019]" -- so the first run of four digits is taken rather than a
+        naive slice (which turned "c1996" into "c199").
+        """
+        m = re.search(r"\d{4}", self.creation_date)
+        return m.group(0) if m else ""
 
 
 class SearchInfo(BaseModel):

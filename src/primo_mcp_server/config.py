@@ -15,12 +15,15 @@ class PrimoConfig(BaseSettings):
 
     # Institution-specific
     base_url: str = "https://onesearch.library.uwa.edu.au/primaws/rest/pub"
+    discovery_base_url: str | None = None
     vid: str = "61UWA_INST:NDE_UWA"
     institution_name: str = "UWA"
     tab_everything: str = "Everything"
     tab_catalogue: str = "Catalogue"
+    tab_books_videos: str = "booksandvideos"
     scope_combined: str = "MyInst_and_CI"
     scope_local: str = "MyInstitution"
+    scope_books_videos: str = "BooksVideos"
 
     # Operational
     request_timeout: float = 30.0

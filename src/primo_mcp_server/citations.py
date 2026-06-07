@@ -5,13 +5,26 @@ Supports APA 7th, Harvard, Chicago, IEEE, and Vancouver styles.
 
 from __future__ import annotations
 
+import re
+
 from primo_mcp_server.models import PrimoRecord
+
+
+_CJK_RE = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]")
+
+
+def _has_cjk(value: str) -> bool:
+    """Return true when a name contains CJK characters."""
+    return bool(_CJK_RE.search(value))
 
 
 def _authors_last_initials(creators: list[str]) -> list[str]:
     """Convert 'Last, First' to 'Last, F.' format."""
     result = []
     for c in creators:
+        if _has_cjk(c):
+            result.append(c.strip())
+            continue
         parts = c.split(",", 1)
         if len(parts) == 2:
             last = parts[0].strip()
@@ -59,6 +72,9 @@ def _authors_ieee(creators: list[str]) -> list[str]:
     """Format authors in IEEE style (F. Last)."""
     result = []
     for c in creators:
+        if _has_cjk(c):
+            result.append(c.strip())
+            continue
         parts = c.split(",", 1)
         if len(parts) == 2:
             last = parts[0].strip()
@@ -74,6 +90,9 @@ def _authors_vancouver(creators: list[str]) -> str:
     """Format authors in Vancouver style."""
     formatted = []
     for c in creators:
+        if _has_cjk(c):
+            formatted.append(c.strip())
+            continue
         parts = c.split(",", 1)
         if len(parts) == 2:
             last = parts[0].strip()
@@ -91,14 +110,12 @@ def _authors_vancouver(creators: list[str]) -> str:
 
 def _year(record: PrimoRecord) -> str:
     """Extract 4-digit year from creation date."""
-    if record.creation_date:
-        return record.creation_date[:4]
-    return "n.d."
+    return record.year or "n.d."
 
 
 def _cite_article_apa(r: PrimoRecord) -> str:
     """APA 7 article citation."""
-    authors = _authors_apa(r.authors_structured or r.creators)
+    authors = _authors_apa(r.display_authors)
     year = _year(r)
     title = r.title.rstrip(".")
     journal = r.journal_title
@@ -122,7 +139,7 @@ def _cite_article_apa(r: PrimoRecord) -> str:
 
 def _cite_book_apa(r: PrimoRecord) -> str:
     """APA 7 book citation."""
-    authors = _authors_apa(r.authors_structured or r.creators)
+    authors = _authors_apa(r.display_authors)
     year = _year(r)
     title = r.title.rstrip(".")
     publisher = r.publisher or ""
@@ -137,7 +154,7 @@ def _cite_book_apa(r: PrimoRecord) -> str:
 
 def _cite_article_harvard(r: PrimoRecord) -> str:
     """Harvard article citation."""
-    authors = _authors_harvard(r.authors_structured or r.creators)
+    authors = _authors_harvard(r.display_authors)
     year = _year(r)
     title = r.title.rstrip(".")
     journal = r.journal_title
@@ -161,7 +178,7 @@ def _cite_article_harvard(r: PrimoRecord) -> str:
 
 def _cite_book_harvard(r: PrimoRecord) -> str:
     """Harvard book citation."""
-    authors = _authors_harvard(r.authors_structured or r.creators)
+    authors = _authors_harvard(r.display_authors)
     year = _year(r)
     title = r.title.rstrip(".")
     publisher = r.publisher or ""
@@ -174,7 +191,7 @@ def _cite_book_harvard(r: PrimoRecord) -> str:
 
 def _cite_article_chicago(r: PrimoRecord) -> str:
     """Chicago article citation."""
-    authors = _authors_chicago(r.authors_structured or r.creators)
+    authors = _authors_chicago(r.display_authors)
     year = _year(r)
     title = r.title.rstrip(".")
     journal = r.journal_title
@@ -200,7 +217,7 @@ def _cite_article_chicago(r: PrimoRecord) -> str:
 
 def _cite_book_chicago(r: PrimoRecord) -> str:
     """Chicago book citation."""
-    authors = _authors_chicago(r.authors_structured or r.creators)
+    authors = _authors_chicago(r.display_authors)
     year = _year(r)
     title = r.title.rstrip(".")
     publisher = r.publisher or ""
@@ -215,7 +232,7 @@ def _cite_book_chicago(r: PrimoRecord) -> str:
 
 def _cite_article_ieee(r: PrimoRecord) -> str:
     """IEEE article citation."""
-    authors_list = _authors_ieee(r.authors_structured or r.creators)
+    authors_list = _authors_ieee(r.display_authors)
     if not authors_list:
         authors_str = "Unknown author"
     elif len(authors_list) <= 3:
@@ -250,7 +267,7 @@ def _cite_article_ieee(r: PrimoRecord) -> str:
 
 def _cite_book_ieee(r: PrimoRecord) -> str:
     """IEEE book citation."""
-    authors_list = _authors_ieee(r.authors_structured or r.creators)
+    authors_list = _authors_ieee(r.display_authors)
     if not authors_list:
         authors_str = "Unknown author"
     else:
@@ -272,7 +289,7 @@ def _cite_book_ieee(r: PrimoRecord) -> str:
 
 def _cite_article_vancouver(r: PrimoRecord) -> str:
     """Vancouver article citation."""
-    authors = _authors_vancouver(r.authors_structured or r.creators)
+    authors = _authors_vancouver(r.display_authors)
     title = r.title.rstrip(".")
     journal = r.journal_title or ""
     year = _year(r)
@@ -296,7 +313,7 @@ def _cite_article_vancouver(r: PrimoRecord) -> str:
 
 def _cite_book_vancouver(r: PrimoRecord) -> str:
     """Vancouver book citation."""
-    authors = _authors_vancouver(r.authors_structured or r.creators)
+    authors = _authors_vancouver(r.display_authors)
     title = r.title.rstrip(".")
     publisher = r.publisher or ""
     year = _year(r)

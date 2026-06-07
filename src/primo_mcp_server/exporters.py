@@ -12,7 +12,7 @@ from primo_mcp_server.models import PrimoRecord
 def _bibtex_key(record: PrimoRecord) -> str:
     """Generate a BibTeX citation key from author and year."""
     first_author = ""
-    authors = record.authors_structured or record.creators
+    authors = record.display_authors
     if authors:
         # Take last name of first author
         parts = authors[0].split(",", 1)
@@ -20,7 +20,7 @@ def _bibtex_key(record: PrimoRecord) -> str:
         # Remove non-alphanumeric
         first_author = re.sub(r"[^a-z0-9]", "", first_author)
 
-    year = record.creation_date[:4] if record.creation_date else "nodate"
+    year = record.year or "nodate"
 
     # Add first word of title for uniqueness
     title_word = ""
@@ -28,6 +28,11 @@ def _bibtex_key(record: PrimoRecord) -> str:
         words = re.findall(r"[a-zA-Z]+", record.title)
         if words:
             title_word = words[0].lower()
+
+    if not first_author and not title_word:
+        record_key = re.sub(r"[^a-z0-9]", "", record.record_id.lower())
+        if record_key:
+            return record_key
 
     return f"{first_author}{year}{title_word}" or "unknown"
 
@@ -65,12 +70,12 @@ def export_bibtex(records: list[PrimoRecord]) -> str:
 
         # Build fields
         fields = []
-        authors = record.authors_structured or record.creators
+        authors = record.display_authors
         if authors:
             fields.append(f"  author = {{{_bibtex_escape(' and '.join(authors))}}}")
         fields.append(f"  title = {{{_bibtex_escape(record.title)}}}")
 
-        year = record.creation_date[:4] if record.creation_date else ""
+        year = record.year
         if year:
             fields.append(f"  year = {{{year}}}")
 
@@ -121,7 +126,7 @@ def export_ris(records: list[PrimoRecord]) -> str:
         lines.append(f"TY  - {ris_type_map.get(rtype, 'GEN')}")
 
         # Authors
-        authors = record.authors_structured or record.creators
+        authors = record.display_authors
         for author in authors:
             lines.append(f"AU  - {author}")
 
@@ -131,7 +136,7 @@ def export_ris(records: list[PrimoRecord]) -> str:
             lines.append(f"JO  - {record.journal_title}")
             lines.append(f"T2  - {record.journal_title}")
 
-        year = record.creation_date[:4] if record.creation_date else ""
+        year = record.year
         if year:
             lines.append(f"PY  - {year}")
             lines.append(f"DA  - {record.creation_date}")
@@ -197,8 +202,8 @@ def export_csv(records: list[PrimoRecord]) -> str:
     ])
 
     for record in records:
-        authors = record.authors_structured or record.creators
-        year = record.creation_date[:4] if record.creation_date else ""
+        authors = record.display_authors
+        year = record.year
         pages = record.start_page
         if pages and record.end_page:
             pages += f"-{record.end_page}"

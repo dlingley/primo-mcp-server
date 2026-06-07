@@ -1,11 +1,27 @@
 """Tests for result formatting."""
 
+from urllib.parse import parse_qs, urlparse
+
+from primo_mcp_server.config import PrimoConfig
 from primo_mcp_server.formatter import (
+    build_record_url,
+    build_search_url,
     format_record_detail,
     format_search_results,
     format_suggestions,
 )
-from primo_mcp_server.models import SearchResponse
+from primo_mcp_server.models import PrimoRecord, SearchResponse
+
+
+def _smu_config(**overrides) -> PrimoConfig:
+    values = {
+        "base_url": "https://search.library.smu.edu.sg/primaws/rest/pub",
+        "discovery_base_url": None,
+        "vid": "65SMU_INST:SMU_NUI",
+        "language": "en",
+    }
+    values.update(overrides)
+    return PrimoConfig(**values)
 
 
 class TestFormatSearchResults:
@@ -19,8 +35,9 @@ class TestFormatSearchResults:
 
     def test_empty_results_message(self, empty_results_data):
         response = SearchResponse.from_api_response(empty_results_data)
-        output = format_search_results(response, "xyzzyplugh99999")
+        output = format_search_results(response, "xyzzyplugh99999", config=_smu_config())
         assert "No results found" in output
+        assert "Search in Primo: [Open search](" in output
         assert "Suggestions" in output
 
     def test_contains_record_ids(self, search_results_data):
@@ -33,6 +50,25 @@ class TestFormatSearchResults:
         output = format_search_results(response, "test")
         assert "Found" in output
         assert "results" in output
+
+    def test_keeps_plain_titles_without_config(self, search_results_data):
+        response = SearchResponse.from_api_response(search_results_data)
+        record = response.records[0]
+        output = format_search_results(response, "test")
+
+        assert f"[1] {record.title}" in output
+        assert f"[1] [{record.title}](" not in output
+
+    def test_links_search_result_titles(self, search_results_data):
+        response = SearchResponse.from_api_response(search_results_data)
+        record = response.records[0]
+        output = format_search_results(response, "test", config=_smu_config())
+
+        assert "Search in Primo: [Open search](" in output
+        assert f"[1] [{record.title}](" in output
+        assert "Berger, Elisabeth S.C." in output
+        assert "| 2021 | Article" in output
+        assert f"Record ID: {record.record_id}" in output
 
 
 class TestFormatRecordDetail:
@@ -51,6 +87,151 @@ class TestFormatRecordDetail:
         if record.doi:
             output = format_record_detail(record)
             assert "DOI:" in output
+
+    def test_links_detail_title(self, search_results_data):
+        response = SearchResponse.from_api_response(search_results_data)
+        record = response.records[0]
+        output = format_record_detail(record, config=_smu_config())
+
+        assert f"Title: [{record.title}](" in output
+        assert "Author(s):" in output
+        assert f"Record ID: {record.record_id}" in output
+
+    def test_preserves_chinese_record_text(self):
+        title = "\u5b89\u6e90 : \u767c\u6398\u4e2d\u570b\u9769\u547d\u4e4b\u50b3\u7d71."
+        author = "\u88f4, \u5b9c\u7406."
+        record = PrimoRecord(
+            record_id="alma99317560802601",
+            title=title,
+            resource_type="book",
+            creators=[author],
+            creation_date="2014",
+        )
+        output = format_search_results(
+            SearchResponse.model_validate(
+                {"info": {"total": 1}, "records": [record]}
+            ),
+            "\u5b89\u6e90",
+            config=_smu_config(),
+        )
+
+        assert f"[{title}](" in output
+        assert title in output
+        assert author in output
+
+
+class TestBuildRecordUrl:
+    def test_alma_record_uses_local_context(self):
+        record = PrimoRecord(record_id="alma99862242402601")
+        url = build_record_url(record, _smu_config())
+        assert url is not None
+
+        params = parse_qs(urlparse(url).query)
+        assert params["docid"] == ["alma99862242402601"]
+        assert params["context"] == ["L"]
+
+    def test_cdi_record_uses_pc_context(self):
+        record = PrimoRecord(record_id="cdi_gale_onefilemisc_PPGS_A666195044")
+        url = build_record_url(record, _smu_config())
+        assert url is not None
+
+        params = parse_qs(urlparse(url).query)
+        assert params["docid"] == ["cdi_gale_onefilemisc_PPGS_A666195044"]
+        assert params["context"] == ["PC"]
+
+    def test_derives_discovery_base_url_from_api_base_url(self):
+        record = PrimoRecord(record_id="alma99862242402601")
+        url = build_record_url(record, _smu_config())
+        assert url is not None
+
+        parsed = urlparse(url)
+        assert (
+            f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            == "https://search.library.smu.edu.sg/discovery/fulldisplay"
+        )
+
+    def test_explicit_discovery_base_url_override(self):
+        record = PrimoRecord(record_id="alma99862242402601")
+        config = _smu_config(
+            base_url="https://api.example.edu/primaws/rest/pub",
+            discovery_base_url="https://catalogue.example.edu/discovery",
+        )
+        url = build_record_url(record, config)
+        assert url is not None
+
+        parsed = urlparse(url)
+        assert (
+            f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            == "https://catalogue.example.edu/discovery/fulldisplay"
+        )
+
+    def test_escapes_record_id_and_vid_values(self):
+        record = PrimoRecord(record_id="cdi/example id:10.123/a b")
+        url = build_record_url(record, _smu_config())
+        assert url is not None
+
+        assert "docid=cdi%2Fexample+id%3A10.123%2Fa+b" in url
+        assert "vid=65SMU_INST%3ASMU_NUI" in url
+
+    def test_returns_none_without_record_id(self):
+        record = PrimoRecord(title="Untitled")
+        assert build_record_url(record, _smu_config()) is None
+
+
+class TestBuildSearchUrl:
+    def test_catalogue_search_url_uses_ui_scope_params(self):
+        url = build_search_url(
+            "anthropic principle",
+            _smu_config(),
+            field="title",
+            scope="catalogue",
+            offset=20,
+            resource_type="books",
+        )
+        assert url is not None
+
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query)
+        assert (
+            f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            == "https://search.library.smu.edu.sg/discovery/search"
+        )
+        assert params["query"] == ["title,contains,anthropic principle"]
+        assert params["tab"] == ["Catalogue"]
+        assert params["search_scope"] == ["MyInstitution"]
+        assert params["vid"] == ["65SMU_INST:SMU_NUI"]
+        assert params["offset"] == ["20"]
+        assert params["facet"] == ["rtype,include,books"]
+
+    def test_everything_search_url_uses_combined_scope(self):
+        url = build_search_url("open access", _smu_config(), scope="everything")
+        assert url is not None
+
+        params = parse_qs(urlparse(url).query)
+        assert params["tab"] == ["Everything"]
+        assert params["search_scope"] == ["MyInst_and_CI"]
+
+    def test_books_videos_search_url_uses_books_videos_scope(self):
+        url = build_search_url("cinema", _smu_config(), scope="books & videos")
+        assert url is not None
+
+        params = parse_qs(urlparse(url).query)
+        assert params["tab"] == ["booksandvideos"]
+        assert params["search_scope"] == ["BooksVideos"]
+
+    def test_search_url_escapes_chinese_query_and_filters(self):
+        url = build_search_url(
+            "\u5b89\u6e90",
+            _smu_config(),
+            date_from="2014",
+            peer_reviewed=True,
+        )
+        assert url is not None
+
+        params = parse_qs(urlparse(url).query)
+        assert params["query"] == ["any,contains,\u5b89\u6e90"]
+        assert "facet=creationdate%2Cinclude%2C2014" in url
+        assert "facet=tlevel%2Cinclude%2Cpeer_reviewed" in url
 
 
 class TestFormatSuggestions:

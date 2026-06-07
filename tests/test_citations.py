@@ -74,3 +74,19 @@ class TestCitations:
             citation = format_citation(response.records[0], style)
             assert len(citation) > 20
             assert response.records[0].title[:20] in citation
+
+    def test_chinese_author_names_are_preserved(self):
+        author = "\u88f4, \u5b9c\u7406."
+        record = PrimoRecord(
+            title="\u5b89\u6e90 : \u767c\u6398\u4e2d\u570b\u9769\u547d\u4e4b\u50b3\u7d71.",
+            resource_type="book",
+            creators=[author],
+            authors_structured=[author],
+            creation_date="2014",
+            publisher="Hong Kong University Press",
+        )
+
+        for style in ["apa7", "harvard", "chicago", "ieee", "vancouver"]:
+            citation = format_citation(record, style)
+            assert author in citation
+            assert "\u88f4, \u5b9c." not in citation

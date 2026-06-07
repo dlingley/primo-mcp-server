@@ -10,6 +10,44 @@ from primo_mcp_server.config import PrimoConfig
 from primo_mcp_server.models import PrimoRecord, SearchResponse
 
 
+_SCOPE_ALIASES = {
+    "catalogue": "catalogue",
+    "catalog": "catalogue",
+    "local": "catalogue",
+    "myinstitution": "catalogue",
+    "my_institution": "catalogue",
+    "everything": "everything",
+    "all": "everything",
+    "combined": "everything",
+    "myinst_and_ci": "everything",
+    "pci": "everything",
+    "books_videos": "books_videos",
+    "booksvideos": "books_videos",
+    "booksandvideos": "books_videos",
+    "books/videos": "books_videos",
+    "books & videos": "books_videos",
+}
+
+
+def _normalise_scope(scope: str) -> str:
+    """Resolve caller-friendly scope aliases to canonical scope names."""
+    key = scope.strip().lower().replace("-", "_") if scope else ""
+    try:
+        return _SCOPE_ALIASES[key]
+    except KeyError as e:
+        valid = ", ".join(sorted(set(_SCOPE_ALIASES.values())))
+        raise PrimoAPIError(
+            f'Invalid scope "{scope}". Use one of: {valid}.',
+            status_code=400,
+        ) from e
+
+
+def _normalise_alma_id(record_id: str) -> str:
+    """Strip the Alma prefix for MMS-ID catalogue lookups and matching."""
+    rid = record_id.strip()
+    return rid[4:] if rid.lower().startswith("alma") else rid
+
+
 class PrimoAPIError(Exception):
     """Raised when the Primo API returns an error."""
 
@@ -43,7 +81,8 @@ class PrimoClient:
         Args:
             query: Search terms.
             field: Search field (any, title, creator, sub, isbn, oclcnum).
-            scope: "everything" for local + PCI, "catalogue" for local only.
+            scope: "everything" for local + PCI, "catalogue" for local only,
+                "books_videos" for the institution's books/videos scope.
             sort_by: rank, date, or title.
             limit: Number of results (capped at max_results_per_request).
             offset: Pagination offset.
@@ -59,13 +98,18 @@ class PrimoClient:
         limit = min(max(1, limit), cfg.max_results_per_request)
         offset = max(0, offset)
 
+        canonical_scope = _normalise_scope(scope)
+
         # Resolve scope to tab + scope params
-        if scope == "catalogue":
+        if canonical_scope == "catalogue":
             tab = cfg.tab_catalogue
             scope_param = cfg.scope_local
-        else:
+        elif canonical_scope == "everything":
             tab = cfg.tab_everything
             scope_param = cfg.scope_combined
+        else:
+            tab = cfg.tab_books_videos
+            scope_param = cfg.scope_books_videos
 
         params: dict[str, Any] = {
             "vid": cfg.vid,
@@ -106,26 +150,62 @@ class PrimoClient:
         Searches by the record ID and returns the first matching result.
         Returns None if not found.
         """
-        cfg = self._config
-        params: dict[str, Any] = {
-            "vid": cfg.vid,
-            "tab": cfg.tab_everything,
-            "scope": cfg.scope_combined,
-            "q": f"any,contains,{record_id}",
-            "offset": "0",
-            "limit": "5",
-            "lang": cfg.language,
-        }
-        data = await self._get("/pnxs", params=params)
-        response = SearchResponse.from_api_response(data)
+        search_plan = self._record_search_plan(record_id)
+        first_fallback: PrimoRecord | None = None
 
-        # Find exact match by record_id
-        for record in response.records:
-            if record.record_id == record_id:
-                return record
+        for tab, scope_param, query in search_plan:
+            params: dict[str, Any] = {
+                "vid": self._config.vid,
+                "tab": tab,
+                "scope": scope_param,
+                "q": f"any,contains,{query}",
+                "offset": "0",
+                "limit": "5",
+                "lang": self._config.language,
+            }
+            data = await self._get("/pnxs", params=params)
+            response = SearchResponse.from_api_response(data)
 
-        # If no exact match, return the first result (may be a partial match)
-        return response.records[0] if response.records else None
+            for record in response.records:
+                if self._record_ids_match(record.record_id, record_id):
+                    return record
+
+            if first_fallback is None and response.records:
+                first_fallback = response.records[0]
+
+        return first_fallback
+
+    def _record_search_plan(self, record_id: str) -> list[tuple[str, str, str]]:
+        """Return the search attempts used to resolve a Primo record ID."""
+        rid = record_id.strip()
+        normalised = _normalise_alma_id(rid)
+
+        if rid.lower().startswith("alma") or rid.isdigit():
+            queries = [rid]
+            if normalised != rid:
+                queries.append(normalised)
+            alma_prefixed = f"alma{normalised}" if normalised.isdigit() else normalised
+            if alma_prefixed not in queries:
+                queries.append(alma_prefixed)
+            return [
+                (self._config.tab_catalogue, self._config.scope_local, query)
+                for query in queries
+            ] + [
+                (self._config.tab_everything, self._config.scope_combined, query)
+                for query in queries
+            ]
+
+        return [(self._config.tab_everything, self._config.scope_combined, rid)]
+
+    @staticmethod
+    def _record_ids_match(found_id: str, requested_id: str) -> bool:
+        """Match exact IDs or equivalent Alma IDs with/without prefix."""
+        found = found_id.strip()
+        requested = requested_id.strip()
+        return (
+            found == requested
+            or _normalise_alma_id(found) == _normalise_alma_id(requested)
+        )
 
     async def suggest(self, query: str) -> list[str]:
         """Get autocomplete suggestions for a search term."""
