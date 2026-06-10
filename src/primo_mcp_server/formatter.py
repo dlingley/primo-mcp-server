@@ -93,6 +93,13 @@ def _search_scope_params(config: PrimoConfig, scope: str) -> tuple[str, str] | N
     return None
 
 
+def _date_range_facet_value(date_from: str | None, date_to: str | None) -> str | None:
+    """Return Primo's documented creation-date range facet value."""
+    if not date_from:
+        return None
+    return f"[{date_from} TO {date_to or date_from}]"
+
+
 def _record_context(record: PrimoRecord) -> str:
     """Return the Primo full-display context for a local or remote record."""
     if record.context.strip().upper() == "L":
@@ -161,11 +168,9 @@ def build_search_url(
         params.append(("sortby", sort_by))
     if resource_type:
         params.append(("facet", f"rtype,include,{resource_type}"))
-    if date_from and date_to:
-        for year in range(int(date_from), int(date_to) + 1):
-            params.append(("facet", f"creationdate,include,{year}"))
-    elif date_from:
-        params.append(("facet", f"creationdate,include,{date_from}"))
+    date_range = _date_range_facet_value(date_from, date_to)
+    if date_range:
+        params.append(("facet", f"searchcreationdate,include,{date_range}"))
     if peer_reviewed:
         params.append(("facet", "tlevel,include,peer_reviewed"))
 

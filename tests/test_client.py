@@ -92,6 +92,75 @@ class TestSearchRequestScopes:
         assert requests == []
 
 
+class TestSearchRequestFilters:
+    async def test_search_uses_documented_date_range_facet(self):
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return _empty_response()
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, _config())
+            await client.search("Singapore", date_from="2020", date_to="2022")
+
+        params = requests[0].url.params
+        assert (
+            params["qInclude"]
+            == "facet_searchcreationdate,exact,[2020 TO 2022]"
+        )
+
+    async def test_search_uses_exact_year_range_for_date_from_only(self):
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return _empty_response()
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, _config())
+            await client.search("Singapore", date_from="2020")
+
+        params = requests[0].url.params
+        assert (
+            params["qInclude"]
+            == "facet_searchcreationdate,exact,[2020 TO 2020]"
+        )
+
+    async def test_search_combines_date_range_with_other_filters(self):
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return _empty_response()
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, _config())
+            await client.search(
+                "Singapore",
+                resource_type="articles",
+                date_from="2020",
+                date_to="2022",
+                peer_reviewed=True,
+            )
+
+        params = requests[0].url.params
+        assert params["qInclude"] == (
+            "facet_rtype,exact,articles|,|"
+            "facet_searchcreationdate,exact,[2020 TO 2022]|,|"
+            "facet_tlevel,exact,peer_reviewed"
+        )
+
+
 class TestGetRecord:
     def _alma_doc(self) -> dict:
         return {

@@ -230,8 +230,26 @@ class TestBuildSearchUrl:
 
         params = parse_qs(urlparse(url).query)
         assert params["query"] == ["any,contains,\u5b89\u6e90"]
-        assert "facet=creationdate%2Cinclude%2C2014" in url
-        assert "facet=tlevel%2Cinclude%2Cpeer_reviewed" in url
+        assert "searchcreationdate,include,[2014 TO 2014]" in params["facet"]
+        assert "tlevel,include,peer_reviewed" in params["facet"]
+
+    def test_search_url_uses_date_range_facet(self):
+        url = build_search_url(
+            "open access",
+            _smu_config(),
+            resource_type="articles",
+            date_from="2020",
+            date_to="2022",
+            peer_reviewed=True,
+        )
+        assert url is not None
+
+        params = parse_qs(urlparse(url).query)
+        assert params["facet"] == [
+            "rtype,include,articles",
+            "searchcreationdate,include,[2020 TO 2022]",
+            "tlevel,include,peer_reviewed",
+        ]
 
 
 class TestFormatSuggestions:

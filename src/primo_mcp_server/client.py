@@ -48,6 +48,13 @@ def _normalise_alma_id(record_id: str) -> str:
     return rid[4:] if rid.lower().startswith("alma") else rid
 
 
+def _date_range_facet_value(date_from: str | None, date_to: str | None) -> str | None:
+    """Return Primo's documented creation-date range facet value."""
+    if not date_from:
+        return None
+    return f"[{date_from} TO {date_to or date_from}]"
+
+
 class PrimoAPIError(Exception):
     """Raised when the Primo API returns an error."""
 
@@ -127,13 +134,9 @@ class PrimoClient:
         q_include: list[str] = []
         if resource_type:
             q_include.append(f"facet_rtype,exact,{resource_type}")
-        if date_from and date_to:
-            # Primo uses individual year facets; for range we add each year
-            # Actually, Primo supports date range via creationdate facet
-            for year in range(int(date_from), int(date_to) + 1):
-                q_include.append(f"facet_creationdate,exact,{year}")
-        elif date_from:
-            q_include.append(f"facet_creationdate,exact,{date_from}")
+        date_range = _date_range_facet_value(date_from, date_to)
+        if date_range:
+            q_include.append(f"facet_searchcreationdate,exact,{date_range}")
         if peer_reviewed:
             q_include.append("facet_tlevel,exact,peer_reviewed")
 
