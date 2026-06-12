@@ -285,6 +285,21 @@ class SearchResponse(BaseModel):
     info: SearchInfo = SearchInfo()
     records: list[PrimoRecord] = []
 
+    @property
+    def total_results(self) -> int:
+        """Compatibility alias for older callers."""
+        return self.info.total
+
+    @property
+    def total_local_results(self) -> int:
+        """Compatibility alias for older callers."""
+        return self.info.total_local
+
+    @property
+    def total_pc_results(self) -> int:
+        """Compatibility alias for older callers."""
+        return self.info.total_pc
+
     @classmethod
     def from_api_response(cls, data: dict) -> SearchResponse:
         """Parse the full /pnxs API response."""

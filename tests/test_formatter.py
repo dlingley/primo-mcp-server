@@ -9,6 +9,7 @@ from primo_mcp_server.formatter import (
     format_record_detail,
     format_search_results,
     format_suggestions,
+    record_link,
 )
 from primo_mcp_server.models import PrimoRecord, SearchResponse
 
@@ -50,6 +51,12 @@ class TestFormatSearchResults:
         output = format_search_results(response, "test")
         assert "Found" in output
         assert "results" in output
+
+    def test_formats_results_without_query_argument(self, search_results_data):
+        response = SearchResponse.from_api_response(search_results_data)
+        output = format_search_results(response, config=_smu_config())
+        assert "Found" in output
+        assert "Search in Primo: [Open search](" not in output
 
     def test_keeps_plain_titles_without_config(self, search_results_data):
         response = SearchResponse.from_api_response(search_results_data)
@@ -176,6 +183,11 @@ class TestBuildRecordUrl:
     def test_returns_none_without_record_id(self):
         record = PrimoRecord(title="Untitled")
         assert build_record_url(record, _smu_config()) is None
+
+    def test_record_link_alias_matches_build_record_url(self):
+        record = PrimoRecord(record_id="alma99862242402601")
+        config = _smu_config()
+        assert record_link(record, config) == build_record_url(record, config)
 
 
 class TestBuildSearchUrl:

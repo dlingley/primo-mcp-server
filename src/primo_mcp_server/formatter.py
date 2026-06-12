@@ -133,6 +133,9 @@ def build_record_url(record: PrimoRecord, config: PrimoConfig | None = None) -> 
     return f"{app_base}/fulldisplay?{params}"
 
 
+record_link = build_record_url
+
+
 def build_search_url(
     query: str,
     config: PrimoConfig | None = None,
@@ -192,7 +195,7 @@ def _format_title(record: PrimoRecord, config: PrimoConfig | None = None) -> str
 
 def format_search_results(
     response: SearchResponse,
-    query: str,
+    query: str = "",
     offset: int = 0,
     config: PrimoConfig | None = None,
     field: str = "any",

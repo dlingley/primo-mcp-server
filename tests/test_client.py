@@ -332,6 +332,46 @@ class TestGetRecordDirect:
         assert record is not None
         assert record.record_id == "alma99317560802601"
 
+    @pytest.mark.parametrize(
+        "direct_response",
+        [
+            httpx.Response(200, text="not-json"),
+            httpx.Response(200, json={"pnx": "malformed"}),
+        ],
+    )
+    async def test_falls_back_to_search_when_direct_response_is_malformed(
+        self, direct_response: httpx.Response
+    ):
+        token = _fake_jwt()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if "guestJwt" in request.url.path:
+                return httpx.Response(200, json=token)
+            if "/pnxs/" in request.url.path:
+                return direct_response
+            if request.url.path.endswith("/pnxs"):
+                q = request.url.params["q"]
+                if "99317560802601" in q:
+                    return httpx.Response(
+                        200,
+                        json={
+                            "info": {"total": 1},
+                            "docs": [self._direct_doc()],
+                        },
+                    )
+                return _empty_response()
+            raise AssertionError(f"unexpected request: {request.url}")
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, _config())
+            record = await client.get_record("alma99317560802601")
+
+        assert record is not None
+        assert record.record_id == "alma99317560802601"
+
     async def test_direct_mismatch_returns_none_not_wrong_record(self):
         token = _fake_jwt()
 

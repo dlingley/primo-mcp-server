@@ -317,14 +317,18 @@ class PrimoClient:
                 return "auth"
             response.raise_for_status()
             data = response.json()
-            return data if isinstance(data, dict) and "pnx" in data else None
-        except httpx.HTTPError:
+            if not isinstance(data, dict) or not isinstance(data.get("pnx"), dict):
+                return None
+            return data
+        except (httpx.HTTPError, ValueError):
             return None
 
     @staticmethod
     def _merge_direct_delivery(data: dict[str, Any]) -> dict[str, Any]:
         """Map the direct endpoint's top-level delivery into pnx shape."""
         pnx = data.get("pnx", {})
+        if not isinstance(pnx, dict):
+            return data
         if pnx.get("delivery"):
             return data
         top_delivery = data.get("delivery", {})

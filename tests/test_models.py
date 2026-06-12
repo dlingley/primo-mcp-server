@@ -14,6 +14,12 @@ class TestSearchResponse:
         assert response.info.total == 0
         assert len(response.records) == 0
 
+    def test_total_count_compatibility_properties(self, search_results_data):
+        response = SearchResponse.from_api_response(search_results_data)
+        assert response.total_results == response.info.total
+        assert response.total_local_results == response.info.total_local
+        assert response.total_pc_results == response.info.total_pc
+
     def test_record_has_title(self, search_results_data):
         response = SearchResponse.from_api_response(search_results_data)
         for record in response.records:
