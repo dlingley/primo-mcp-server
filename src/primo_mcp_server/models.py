@@ -27,6 +27,30 @@ def _first_or_empty(v: str | list[str] | None) -> str:
     return items[0] if items else ""
 
 
+# Tokens in delivery/fulltext that explicitly signal NO full text. Observed
+# live values are "fulltext", "fulltext_linktorsrc", "fulltext_multiple"
+# (available) and "no_fulltext" (not available); "fulltext_not_available"
+# is included defensively.
+_FULLTEXT_NEGATIVE = {"no_fulltext", "fulltext_not_available"}
+
+
+def _fulltext_available(value: str | list[str] | None) -> bool:
+    """Return True when any delivery/fulltext token signals available full text.
+
+    Tokens are matched exactly against known negatives and by prefix for
+    positives. The previous substring test ("fulltext" in str(value)) also
+    matched "no_fulltext", so records with no full text were reported as
+    available.
+    """
+    for token in _to_list(value):
+        t = str(token).strip().lower()
+        if t in _FULLTEXT_NEGATIVE:
+            continue
+        if t.startswith("fulltext"):
+            return True
+    return False
+
+
 # MARC relator terms that Primo appends to display names, e.g.
 # "Mueller, John, 1958- author." -- stripped for clean author display.
 _RELATORS = (
@@ -234,7 +258,7 @@ class PrimoRecord(BaseModel):
             additional_authors=_clean_names(
                 _to_list(addata.get("addau")), split=False, strip_relators=False
             ),
-            fulltext_available="fulltext" in str(delivery.get("fulltext", "")),
+            fulltext_available=_fulltext_available(delivery.get("fulltext")),
             delivery_category=_first_or_empty(delivery.get("delcategory")),
             score=score,
             context=doc.get("context", ""),

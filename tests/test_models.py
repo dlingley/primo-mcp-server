@@ -200,3 +200,58 @@ class TestNameCleaning:
 
         assert record.title == title
         assert record.creators == [author]
+
+
+class TestFulltextAvailability:
+    """Regression tests: no_fulltext must not be reported as available."""
+
+    @staticmethod
+    def _doc(fulltext):
+        return {
+            "pnx": {
+                "control": {"recordid": ["cdi_test_1"]},
+                "display": {"title": ["A title"]},
+                "delivery": {"fulltext": fulltext},
+            },
+            "context": "PC",
+        }
+
+    def test_no_fulltext_is_not_available(self):
+        record = PrimoRecord.from_api_doc(self._doc(["no_fulltext"]))
+        assert record.fulltext_available is False
+
+    def test_fulltext_is_available(self):
+        record = PrimoRecord.from_api_doc(self._doc(["fulltext"]))
+        assert record.fulltext_available is True
+
+    def test_linktorsrc_is_available(self):
+        record = PrimoRecord.from_api_doc(self._doc(["fulltext_linktorsrc"]))
+        assert record.fulltext_available is True
+
+    def test_fulltext_multiple_is_available(self):
+        record = PrimoRecord.from_api_doc(self._doc(["fulltext_multiple"]))
+        assert record.fulltext_available is True
+
+    def test_mixed_tokens_with_positive_is_available(self):
+        record = PrimoRecord.from_api_doc(
+            self._doc(["no_fulltext", "fulltext_linktorsrc"])
+        )
+        assert record.fulltext_available is True
+
+    def test_string_value_no_fulltext(self):
+        record = PrimoRecord.from_api_doc(self._doc("no_fulltext"))
+        assert record.fulltext_available is False
+
+    def test_string_value_fulltext(self):
+        record = PrimoRecord.from_api_doc(self._doc("fulltext"))
+        assert record.fulltext_available is True
+
+    def test_missing_delivery_defaults_false(self):
+        record = PrimoRecord.from_api_doc(self._doc(None))
+        assert record.fulltext_available is False
+
+    def test_physical_availability_token_is_not_fulltext(self):
+        # Values merged from the direct endpoint can include physical
+        # availability tokens; these must not flag electronic full text.
+        record = PrimoRecord.from_api_doc(self._doc(["available_in_library"]))
+        assert record.fulltext_available is False
