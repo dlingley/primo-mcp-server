@@ -90,3 +90,33 @@ class TestCitations:
             citation = format_citation(record, style)
             assert author in citation
             assert "\u88f4, \u5b9c." not in citation
+
+
+class TestYearWithoutJournal:
+    """Regression: IEEE and Chicago dropped the year when jtitle was empty."""
+
+    @staticmethod
+    def _article_no_journal():
+        return PrimoRecord(
+            record_id="cdi_x", title="A Paper", resource_type="article",
+            creators=["Tan, Mei Ling"], creation_date="2021",
+        )
+
+    def test_ieee_article_without_journal_keeps_year(self):
+        assert "2021" in format_citation(self._article_no_journal(), "ieee")
+
+    def test_chicago_article_without_journal_keeps_year(self):
+        assert "2021" in format_citation(self._article_no_journal(), "chicago")
+
+    def test_apa_article_without_journal_keeps_year(self):
+        assert "2021" in format_citation(self._article_no_journal(), "apa7")
+
+    def test_vancouver_article_without_journal_keeps_year(self):
+        # Vancouver also only emits the year inside the journal block.
+        assert "2021" in format_citation(self._article_no_journal(), "vancouver")
+
+    def test_ieee_with_journal_unchanged(self):
+        r = self._article_no_journal()
+        r.journal_title = "J. Test"
+        cite = format_citation(r, "ieee")
+        assert "2021" in cite and "J. Test" in cite

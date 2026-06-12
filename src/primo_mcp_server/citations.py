@@ -210,6 +210,10 @@ def _cite_article_chicago(r: PrimoRecord) -> str:
                 start += f"-{r.end_page}"
             parts[-1] += f": {start}"
         parts[-1] += "."
+    else:
+        # Without a journal title the year was previously dropped entirely,
+        # since it was only emitted inside the journal block.
+        parts.append(f"{year}.")
     if r.doi:
         parts.append(f"https://doi.org/{r.doi}")
     return " ".join(parts)
@@ -260,6 +264,10 @@ def _cite_article_ieee(r: PrimoRecord) -> str:
             if r.end_page:
                 vol_info += f"-{r.end_page}"
         parts.append(f"{vol_info}, {year}.")
+    else:
+        # Without a journal title the year was previously dropped entirely,
+        # since it was only emitted inside the journal block.
+        parts.append(f"{year}.")
     if r.doi:
         parts.append(f"doi: {r.doi}.")
     return " ".join(parts)
@@ -306,6 +314,10 @@ def _cite_article_vancouver(r: PrimoRecord) -> str:
             if r.end_page:
                 vol_info += f"-{r.end_page}"
         parts.append(f"{vol_info}.")
+    else:
+        # Without a journal title the year was previously dropped entirely,
+        # since it was only emitted inside the journal block.
+        parts.append(f"{year}.")
     if r.doi:
         parts.append(f"doi:{r.doi}")
     return " ".join(parts)

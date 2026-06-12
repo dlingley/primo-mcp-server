@@ -299,3 +299,31 @@ class TestAvailabilityLabel:
             fulltext_available=True,
         )
         assert "Full text available" in _format_availability(record)
+
+
+class TestRecordContextMatching:
+    """Source matching must be exact, not substring (bug: 'Almanac')."""
+
+    def test_cdi_record_with_almanac_source_is_pc(self):
+        record = PrimoRecord(
+            record_id="cdi_test_almanac", title="T",
+            source_label="World Almanac Education",
+        )
+        url = build_record_url(record, _smu_config())
+        assert "context=PC" in url
+
+    def test_alma_source_values_are_local(self):
+        for field in ("source_id", "source_system", "source_label"):
+            record = PrimoRecord(
+                record_id="990012345", title="T", **{field: "Alma"}
+            )
+            url = build_record_url(record, _smu_config())
+            assert "context=L" in url, field
+
+    def test_explicit_context_still_wins(self):
+        record = PrimoRecord(
+            record_id="990012345", title="T", context="L",
+            source_label="World Almanac Education",
+        )
+        url = build_record_url(record, _smu_config())
+        assert "context=L" in url

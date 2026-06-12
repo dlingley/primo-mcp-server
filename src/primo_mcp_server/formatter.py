@@ -113,8 +113,13 @@ def _record_context(record: PrimoRecord) -> str:
     if record.record_id.lower().startswith("alma"):
         return "L"
 
+    # Local records carry sourceid "alma" and source label "Alma" exactly
+    # (observed live); CDI records carry database names. A substring test
+    # ("alma" in value) misclassified any remote record whose source name
+    # contains those letters, e.g. "World Almanac", producing fulldisplay
+    # URLs with context=L that do not resolve.
     source_values = (record.source_id, record.source_system, record.source_label)
-    if any("alma" in value.lower() for value in source_values if value):
+    if any(value.strip().lower() == "alma" for value in source_values if value):
         return "L"
     return "PC"
 
