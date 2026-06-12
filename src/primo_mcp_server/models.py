@@ -68,6 +68,55 @@ _RELATOR_RE = re.compile(
 )
 _SUBFIELD_RE = re.compile(r"\$\$([A-Za-z])([^$]*)")
 _VALUE_SEPARATORS_RE = re.compile(r"[;\uff1b]")
+# Prefixes sometimes carried by DOI values: "doi:10.x", "DOI: 10.x",
+# "https://doi.org/10.x", "http://dx.doi.org/10.x".
+_DOI_PREFIX_RE = re.compile(
+    r"^(?:doi\s*:?\s*|https?://(?:dx\.)?doi\.org/)+", re.IGNORECASE
+)
+
+
+def _clean_doi(value: str) -> str:
+    """Return a bare DOI, stripping doi: labels and resolver URL prefixes."""
+    return _DOI_PREFIX_RE.sub("", value.strip()).strip()
+
+
+def _parse_identifiers(raw_values: list[str]) -> tuple[list[str], str]:
+    """Parse display/identifier into clean strings and extract the first DOI.
+
+    Primo encodes identifiers in two shapes, often semicolon-joined within
+    a single string: PNX subfields ("$$CISBN$$V981-15-1967-6", where C is
+    the type code and V the value) and plain labels ("DOI: 10.1234/x").
+    The previous extraction detected "DOI:" case-insensitively but split on
+    it case-sensitively, so lowercase "doi:" values kept their prefix and
+    produced broken https://doi.org/doi:10.x links, and subfield-encoded
+    DOIs were never detected at all. Identifiers are returned in readable
+    "CODE: value" form rather than raw subfield strings.
+    """
+    cleaned: list[str] = []
+    doi = ""
+    for raw in raw_values:
+        for part in _VALUE_SEPARATORS_RE.split(raw):
+            part = part.strip()
+            if not part:
+                continue
+            code = ""
+            value = part
+            if "$$" in part:
+                pairs = _SUBFIELD_RE.findall(part)
+                code = next((t.strip() for c, t in pairs if c == "C"), "")
+                value = next(
+                    (t.strip() for c, t in pairs if c == "V" and t.strip()), ""
+                ) or _strip_subfields(part)
+            elif ":" in part:
+                head, tail = part.split(":", 1)
+                if tail.strip():
+                    code, value = head.strip(), tail.strip()
+            if not value:
+                continue
+            cleaned.append(f"{code}: {value}" if code else value)
+            if not doi and code.upper() == "DOI":
+                doi = _clean_doi(value)
+    return cleaned, doi
 
 
 def _strip_subfields(value: str) -> str:
@@ -178,13 +227,13 @@ class PrimoRecord(BaseModel):
         search = pnx.get("search", {})
         delivery = pnx.get("delivery", {})
 
-        # Extract DOI from identifiers
-        doi = ""
-        identifiers = _to_list(display.get("identifier"))
-        for ident in identifiers:
-            if "DOI:" in ident.upper():
-                doi = ident.split("DOI:")[-1].strip()
-                break
+        # Identifiers and DOI. Prefer the structured addata/doi field (clean
+        # bare DOIs in CDI records), falling back to DOIs found in
+        # display/identifier, which handles both subfield-encoded ($$CDOI)
+        # and labelled ("DOI: 10.x") shapes case-insensitively.
+        identifiers, ident_doi = _parse_identifiers(_to_list(display.get("identifier")))
+        addata_doi = _first_or_empty(addata.get("doi")).strip()
+        doi = _clean_doi(addata_doi) if addata_doi else ident_doi
 
         # Parse creators -- display.creator is often a single semicolon-separated
         # string and carries $$ subfield codes plus trailing relator terms.

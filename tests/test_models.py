@@ -255,3 +255,78 @@ class TestFulltextAvailability:
         # availability tokens; these must not flag electronic full text.
         record = PrimoRecord.from_api_doc(self._doc(["available_in_library"]))
         assert record.fulltext_available is False
+
+
+class TestDoiAndIdentifierParsing:
+    """Regression tests for DOI extraction and identifier cleaning."""
+
+    @staticmethod
+    def _doc(identifier=None, addata=None):
+        pnx = {
+            "control": {"recordid": ["test"]},
+            "display": {"title": ["Test"]},
+        }
+        if identifier is not None:
+            pnx["display"]["identifier"] = identifier
+        if addata is not None:
+            pnx["addata"] = addata
+        return {"pnx": pnx}
+
+    def test_lowercase_doi_label_is_extracted_clean(self):
+        # Old code detected "doi:" case-insensitively but split
+        # case-sensitively, leaving the prefix in the stored DOI.
+        record = PrimoRecord.from_api_doc(self._doc(["doi: 10.1234/abc"]))
+        assert record.doi == "10.1234/abc"
+
+    def test_subfield_encoded_doi_is_extracted(self):
+        record = PrimoRecord.from_api_doc(
+            self._doc(["$$CDOI$$V10.1007/978-981-15-1967-3"])
+        )
+        assert record.doi == "10.1007/978-981-15-1967-3"
+
+    def test_addata_doi_preferred_over_display_identifier(self):
+        record = PrimoRecord.from_api_doc(
+            self._doc(
+                ["DOI: 10.9999/display-version"],
+                addata={"doi": ["10.1234/addata-version"]},
+            )
+        )
+        assert record.doi == "10.1234/addata-version"
+
+    def test_resolver_url_prefix_is_stripped(self):
+        record = PrimoRecord.from_api_doc(
+            self._doc(["DOI: https://doi.org/10.1234/x"])
+        )
+        assert record.doi == "10.1234/x"
+
+    def test_semicolon_joined_subfield_identifiers_are_cleaned(self):
+        record = PrimoRecord.from_api_doc(
+            self._doc(["$$CISSN$$V1573-0565;$$COCLC$$V(OCoLC)38267175"])
+        )
+        assert record.identifiers == [
+            "ISSN: 1573-0565",
+            "OCLC: (OCoLC)38267175",
+        ]
+        assert record.doi == ""
+
+    def test_doi_within_semicolon_joined_subfields(self):
+        record = PrimoRecord.from_api_doc(
+            self._doc(["$$CISBN$$V981-15-1967-6;$$CDOI$$V10.1007/test"])
+        )
+        assert record.doi == "10.1007/test"
+        assert "ISBN: 981-15-1967-6" in record.identifiers
+
+    def test_no_identifiers_gives_empty_doi(self):
+        record = PrimoRecord.from_api_doc(self._doc())
+        assert record.doi == ""
+        assert record.identifiers == []
+
+    def test_plain_labelled_identifiers_kept_readable(self):
+        record = PrimoRecord.from_api_doc(
+            self._doc(["ISBN: 9811519668", "DOI: 10.1007/978-981-15-1967-3"])
+        )
+        assert record.identifiers == [
+            "ISBN: 9811519668",
+            "DOI: 10.1007/978-981-15-1967-3",
+        ]
+        assert record.doi == "10.1007/978-981-15-1967-3"
