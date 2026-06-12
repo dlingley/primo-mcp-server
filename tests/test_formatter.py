@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, urlparse
 
 from primo_mcp_server.config import PrimoConfig
 from primo_mcp_server.formatter import (
+    _format_availability,
     build_record_url,
     build_search_url,
     format_record_detail,
@@ -273,3 +274,28 @@ class TestFormatSuggestions:
     def test_empty_suggestions(self):
         output = format_suggestions([], "xyzzy")
         assert "No suggestions" in output
+
+
+class TestAvailabilityLabel:
+    """CDI records without full text must not get the vague fallback."""
+
+    def test_pc_record_without_fulltext_says_no_access(self):
+        record = PrimoRecord(
+            record_id="cdi_test_1", title="T", context="PC",
+            fulltext_available=False,
+        )
+        assert "No full text access" in _format_availability(record)
+
+    def test_local_record_without_fulltext_keeps_onesearch_fallback(self):
+        record = PrimoRecord(
+            record_id="alma991234", title="T", context="L",
+            fulltext_available=False,
+        )
+        assert _format_availability(record) == "Check availability in OneSearch"
+
+    def test_fulltext_record_unchanged(self):
+        record = PrimoRecord(
+            record_id="cdi_test_2", title="T", context="PC",
+            fulltext_available=True,
+        )
+        assert "Full text available" in _format_availability(record)

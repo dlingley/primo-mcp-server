@@ -81,6 +81,7 @@ async def primo_search(
     date_from: str | None = None,
     date_to: str | None = None,
     peer_reviewed: bool | None = None,
+    include_unavailable: bool | None = None,
 ) -> str:
     """Search Singapore Management University Library via Primo.
 
@@ -107,6 +108,13 @@ async def primo_search(
         date_from: Start year filter (YYYY format, e.g. "2020").
         date_to: End year filter (YYYY format, e.g. "2025").
         peer_reviewed: Set to true to show only peer-reviewed items.
+        include_unavailable: Set to true to also include article-index (CDI)
+            records the library has NO full text access to (Primo's
+            "expanded" search). Default (false) restricts results to
+            accessible material, which is what holdings and access
+            confirmation requires. Only set true when the user explicitly
+            wants to discover material beyond the library's collection,
+            e.g. for interlibrary loan or comprehensive literature mapping.
 
     Returns:
         Formatted search results with title, authors, year, identifiers, and availability.
@@ -125,6 +133,7 @@ async def primo_search(
             date_from=date_from,
             date_to=date_to,
             peer_reviewed=peer_reviewed,
+            include_unavailable=include_unavailable,
         )
         return format_search_results(
             response,

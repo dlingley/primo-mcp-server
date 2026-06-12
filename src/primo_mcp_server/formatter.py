@@ -57,6 +57,12 @@ def _format_availability(record: PrimoRecord) -> str:
     parts = []
     if record.fulltext_available:
         parts.append("Full text available")
+    elif _record_context(record) == "PC":
+        # CDI records without the fulltext flag are explicit no-access
+        # cases (delivery/fulltext = no_fulltext). Physical Alma holdings
+        # also lack the flag but may well be on the shelf, so only remote
+        # records get this label; local ones keep the OneSearch fallback.
+        parts.append("No full text access")
     if record.delivery_category:
         parts.append(record.delivery_category)
     return " | ".join(parts) if parts else "Check availability in OneSearch"

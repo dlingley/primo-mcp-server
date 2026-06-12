@@ -34,3 +34,9 @@ class PrimoConfig(BaseSettings):
     default_results: int = 10
     language: str = "en"
     user_agent: str = "primo-mcp-server/0.1.0"
+    # Default for the Primo pcAvailability search parameter. When False,
+    # CDI (Central Discovery Index) results are restricted to material the
+    # institution has full text access to; when True the search is
+    # "expanded" and includes records with no access. False is the safer
+    # default for holdings-confirmation queries.
+    include_unavailable: bool = False

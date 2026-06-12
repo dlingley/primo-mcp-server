@@ -124,6 +124,7 @@ environment variables:
 | `PRIMO_MAX_RESULTS_PER_REQUEST` | `50` | Maximum results per search request |
 | `PRIMO_DEFAULT_RESULTS` | `10` | Default results per search |
 | `PRIMO_LANGUAGE` | `en` | Primo language parameter |
+| `PRIMO_INCLUDE_UNAVAILABLE` | `false` | Include CDI records without full text access in search results |
 
 See `.env.example` for a commented template.
 

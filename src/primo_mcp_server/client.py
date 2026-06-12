@@ -161,6 +161,7 @@ class PrimoClient:
         date_from: str | None = None,
         date_to: str | None = None,
         peer_reviewed: bool | None = None,
+        include_unavailable: bool | None = None,
     ) -> SearchResponse:
         """Search the Primo catalogue.
 
@@ -176,6 +177,9 @@ class PrimoClient:
             date_from: Start year (YYYY).
             date_to: End year (YYYY).
             peer_reviewed: Filter to peer-reviewed items only.
+            include_unavailable: Include CDI records the institution has no
+                full text access to (Primo's pcAvailability "expanded"
+                search). None uses the configured default.
 
         Returns:
             SearchResponse with parsed records and pagination info.
@@ -183,6 +187,9 @@ class PrimoClient:
         cfg = self._config
         limit = min(max(1, limit), cfg.max_results_per_request)
         offset = max(0, offset)
+
+        if include_unavailable is None:
+            include_unavailable = cfg.include_unavailable
 
         canonical_scope = _normalise_scope(scope)
 
@@ -206,7 +213,7 @@ class PrimoClient:
             "limit": str(limit),
             "lang": cfg.language,
             "sortby": sort_by,
-            "pcAvailability": "true",
+            "pcAvailability": "true" if include_unavailable else "false",
         }
 
         # Facet filters

@@ -392,3 +392,43 @@ class TestGetRecordDirect:
             record = await client.get_record("alma99317560802601")
 
         assert record is None
+
+
+class TestPcAvailability:
+    """pcAvailability must be controllable, not hardcoded to true."""
+
+    @staticmethod
+    async def _search_params(config: PrimoConfig, **kwargs) -> httpx.QueryParams:
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return _empty_response()
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, config)
+            await client.search("Singapore", **kwargs)
+        return requests[0].url.params
+
+    async def test_default_excludes_unavailable(self):
+        params = await self._search_params(_config())
+        assert params["pcAvailability"] == "false"
+
+    async def test_explicit_true_includes_unavailable(self):
+        params = await self._search_params(_config(), include_unavailable=True)
+        assert params["pcAvailability"] == "true"
+
+    async def test_explicit_false_overrides_config_default(self):
+        config = _config()
+        config.include_unavailable = True
+        params = await self._search_params(config, include_unavailable=False)
+        assert params["pcAvailability"] == "false"
+
+    async def test_none_falls_back_to_config_default(self):
+        config = _config()
+        config.include_unavailable = True
+        params = await self._search_params(config, include_unavailable=None)
+        assert params["pcAvailability"] == "true"
