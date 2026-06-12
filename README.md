@@ -112,6 +112,7 @@ environment variables:
 | `PRIMO_BASE_URL` | `https://search.library.smu.edu.sg/primaws/rest/pub` | Primo API base URL |
 | `PRIMO_DISCOVERY_BASE_URL` | Derived from `PRIMO_BASE_URL` | Primo web app base URL for record and search links |
 | `PRIMO_VID` | `65SMU_INST:SMU_NUI` | Primo view ID |
+| `PRIMO_INSTITUTION_CODE` | Derived from `PRIMO_VID` | Institution code for the guest JWT endpoint |
 | `PRIMO_INSTITUTION_NAME` | `SMU` | Display name |
 | `PRIMO_TAB_EVERYTHING` | `Everything` | Primo tab for combined local and CDI searches |
 | `PRIMO_TAB_CATALOGUE` | `Catalogue` | Primo tab for local catalogue searches |

@@ -174,6 +174,8 @@ class TestGetRecord:
         requests: list[httpx.Request] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
+            if "guestJwt" in request.url.path or "/pnxs/" in request.url.path:
+                return httpx.Response(404)
             requests.append(request)
             q = request.url.params["q"]
             if q == "any,contains,99317560802601":
@@ -197,6 +199,8 @@ class TestGetRecord:
 
     async def test_get_record_resolves_numeric_alma_id(self):
         def handler(request: httpx.Request) -> httpx.Response:
+            if "guestJwt" in request.url.path or "/pnxs/" in request.url.path:
+                return httpx.Response(404)
             q = request.url.params["q"]
             if q == "any,contains,99317560802601":
                 return httpx.Response(
@@ -214,3 +218,137 @@ class TestGetRecord:
 
         assert record is not None
         assert record.record_id == "alma99317560802601"
+
+
+def _fake_jwt(exp_offset: int = 3600) -> str:
+    import base64 as _b64
+    import json as _json
+    import time as _time
+
+    payload = _json.dumps({"exp": int(_time.time()) + exp_offset}).encode()
+    seg = _b64.urlsafe_b64encode(payload).rstrip(b"=").decode()
+    return f"header.{seg}.sig"
+
+
+class TestGetRecordDirect:
+    def _direct_doc(self) -> dict:
+        return {
+            "context": "L",
+            "pnx": {
+                "control": {"recordid": ["alma99317560802601"]},
+                "display": {"title": ["Anyuan"], "type": ["book"]},
+            },
+            "delivery": {
+                "deliveryCategory": ["Alma-P"],
+                "availability": ["available_in_library"],
+            },
+        }
+
+    async def test_direct_lookup_uses_guest_jwt_and_skips_search(self):
+        requests: list[httpx.Request] = []
+        token = _fake_jwt()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if "guestJwt" in request.url.path:
+                return httpx.Response(200, json=token)
+            if request.url.path.endswith("/pnxs/L/alma99317560802601"):
+                assert request.headers["Authorization"] == f"Bearer {token}"
+                return httpx.Response(200, json=self._direct_doc())
+            raise AssertionError(f"unexpected request: {request.url}")
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, _config())
+            record = await client.get_record("alma99317560802601")
+
+        assert record is not None
+        assert record.record_id == "alma99317560802601"
+        assert record.delivery_category == "Alma-P"
+        assert len(requests) == 2
+
+    async def test_direct_lookup_refreshes_jwt_on_403(self):
+        stale, fresh = _fake_jwt(3600), _fake_jwt(7200)
+        issued: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if "guestJwt" in request.url.path:
+                token = stale if not issued else fresh
+                issued.append(token)
+                return httpx.Response(200, json=token)
+            auth = request.headers.get("Authorization", "")
+            if auth == f"Bearer {stale}":
+                return httpx.Response(403)
+            return httpx.Response(200, json=self._direct_doc())
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, _config())
+            record = await client.get_record("alma99317560802601")
+
+        assert record is not None
+        assert issued == [stale, fresh]
+
+    async def test_falls_back_to_search_when_jwt_unavailable(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            if "guestJwt" in request.url.path:
+                return httpx.Response(500)
+            if request.url.path.endswith("/pnxs"):
+                q = request.url.params["q"]
+                if "99317560802601" in q:
+                    return httpx.Response(
+                        200,
+                        json={
+                            "info": {"total": 1},
+                            "docs": [
+                                {
+                                    "pnx": {
+                                        "control": {
+                                            "recordid": ["alma99317560802601"]
+                                        },
+                                        "display": {
+                                            "title": ["Anyuan"],
+                                            "type": ["book"],
+                                        },
+                                    }
+                                }
+                            ],
+                        },
+                    )
+                return _empty_response()
+            raise AssertionError(f"unexpected request: {request.url}")
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, _config())
+            record = await client.get_record("alma99317560802601")
+
+        assert record is not None
+        assert record.record_id == "alma99317560802601"
+
+    async def test_direct_mismatch_returns_none_not_wrong_record(self):
+        token = _fake_jwt()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if "guestJwt" in request.url.path:
+                return httpx.Response(200, json=token)
+            if "/pnxs/" in request.url.path:
+                wrong = self._direct_doc()
+                wrong["pnx"]["control"]["recordid"] = ["alma990000000000001"]
+                return httpx.Response(200, json=wrong)
+            return _empty_response()
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, _config())
+            record = await client.get_record("alma99317560802601")
+
+        assert record is None
