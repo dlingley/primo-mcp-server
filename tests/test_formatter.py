@@ -39,8 +39,10 @@ class TestFormatSearchResults:
         response = SearchResponse.from_api_response(empty_results_data)
         output = format_search_results(response, "xyzzyplugh99999", config=_smu_config())
         assert "No results found" in output
-        assert "Search in Primo: [Open search](" in output
+        assert "Queries run:" in output
+        assert "- [any,contains,xyzzyplugh99999](" in output
         assert "Suggestions" in output
+        assert output.index("Queries run:") < output.index("Suggestions")
 
     def test_contains_record_ids(self, search_results_data):
         response = SearchResponse.from_api_response(search_results_data)
@@ -57,7 +59,7 @@ class TestFormatSearchResults:
         response = SearchResponse.from_api_response(search_results_data)
         output = format_search_results(response, config=_smu_config())
         assert "Found" in output
-        assert "Search in Primo: [Open search](" not in output
+        assert "Queries run:" not in output
 
     def test_keeps_plain_titles_without_config(self, search_results_data):
         response = SearchResponse.from_api_response(search_results_data)
@@ -72,7 +74,9 @@ class TestFormatSearchResults:
         record = response.records[0]
         output = format_search_results(response, "test", config=_smu_config())
 
-        assert "Search in Primo: [Open search](" in output
+        assert "Queries run:" in output
+        assert "- [any,contains,test](" in output
+        assert output.index("Queries run:") < output.index("[1]")
         assert f"[1] [{record.title}](" in output
         assert "Berger, Elisabeth S.C." in output
         assert "| 2021 | Article" in output
@@ -214,7 +218,19 @@ class TestBuildSearchUrl:
         assert params["search_scope"] == ["MyInstitution"]
         assert params["vid"] == ["65SMU_INST:SMU_NUI"]
         assert params["offset"] == ["20"]
+        assert params["pcAvailability"] == ["false"]
         assert params["facet"] == ["rtype,include,books"]
+
+    def test_search_url_can_include_unavailable_records(self):
+        url = build_search_url(
+            "audit fees",
+            _smu_config(),
+            include_unavailable=True,
+        )
+        assert url is not None
+
+        params = parse_qs(urlparse(url).query)
+        assert params["pcAvailability"] == ["true"]
 
     def test_everything_search_url_uses_combined_scope(self):
         url = build_search_url("open access", _smu_config(), scope="everything")

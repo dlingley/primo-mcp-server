@@ -159,6 +159,7 @@ def build_search_url(
     date_from: str | None = None,
     date_to: str | None = None,
     peer_reviewed: bool | None = None,
+    include_unavailable: bool | None = None,
 ) -> str | None:
     """Build a direct Primo UI search URL for the search response."""
     if config is None or not query or not config.vid:
@@ -170,6 +171,8 @@ def build_search_url(
         return None
 
     tab, search_scope = scope_params
+    if include_unavailable is None:
+        include_unavailable = config.include_unavailable
     params: list[tuple[str, str]] = [
         ("query", f"{field},contains,{query}"),
         ("tab", tab),
@@ -177,6 +180,7 @@ def build_search_url(
         ("vid", config.vid),
         ("lang", config.language),
         ("offset", str(max(0, offset))),
+        ("pcAvailability", "true" if include_unavailable else "false"),
     ]
     if sort_by:
         params.append(("sortby", sort_by))
@@ -194,6 +198,13 @@ def build_search_url(
 def _markdown_link_text(text: str) -> str:
     """Escape Markdown link text while preserving Unicode metadata."""
     return text.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
+
+
+def _format_query_links(query: str, field: str, search_url: str | None) -> list[str]:
+    if not search_url:
+        return []
+    query_label = _markdown_link_text(f"{field},contains,{query}")
+    return ["Queries run:", f"- [{query_label}]({search_url})", ""]
 
 
 def _format_title(record: PrimoRecord, config: PrimoConfig | None = None) -> str:
@@ -216,6 +227,7 @@ def format_search_results(
     date_from: str | None = None,
     date_to: str | None = None,
     peer_reviewed: bool | None = None,
+    include_unavailable: bool | None = None,
 ) -> str:
     """Format search results as a compact numbered list.
 
@@ -232,22 +244,23 @@ def format_search_results(
         date_from=date_from,
         date_to=date_to,
         peer_reviewed=peer_reviewed,
+        include_unavailable=include_unavailable,
     )
-    search_link = (
-        f"Search in Primo: [Open search]({search_url})\n\n"
-        if search_url else ""
-    )
+    query_links = _format_query_links(query, field, search_url)
 
     if not response.records:
-        return (
-            f'No results found for "{query}".\n\n'
-            f"{search_link}"
-            "Suggestions:\n"
-            "- Broaden your search terms\n"
-            "- Check spelling\n"
-            "- Try a different search field (title, creator, subject)\n"
-            "- Remove filters (resource type, date range)"
+        lines = [f'No results found for "{query}".', ""]
+        lines.extend(query_links)
+        lines.extend(
+            [
+                "Suggestions:",
+                "- Broaden your search terms",
+                "- Check spelling",
+                "- Try a different search field (title, creator, subject)",
+                "- Remove filters (resource type, date range)",
+            ]
         )
+        return "\n".join(lines)
 
     total = f"{response.info.total:,}"
     showing_start = offset + 1
@@ -257,8 +270,7 @@ def format_search_results(
         f'Found {total} results for "{query}" (showing {showing_start}-{showing_end})',
         "",
     ]
-    if search_url:
-        lines.extend([f"Search in Primo: [Open search]({search_url})", ""])
+    lines.extend(query_links)
 
     for i, record in enumerate(response.records, start=showing_start):
         # Line 1: number, title, year, type

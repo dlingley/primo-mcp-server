@@ -147,6 +147,7 @@ async def primo_search(
             date_from=date_from,
             date_to=date_to,
             peer_reviewed=peer_reviewed,
+            include_unavailable=include_unavailable,
         )
     except PrimoAPIError as e:
         return f"Error searching Primo: {e}"
