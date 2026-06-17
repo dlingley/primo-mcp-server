@@ -135,6 +135,7 @@ From a Claude Code conversation:
 - "Search the catalogue for books on poverty in Singapore"
 - "Search Everything for peer-reviewed articles on open access citation advantage"
 - "Do we have access to JSTOR?"
+- "search for databases with data on cost of living"
 - "Get the full details for record alma991234567890"
 - "Generate APA7 citations for these records"
 - "Export these records as BibTeX"
