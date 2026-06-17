@@ -82,6 +82,17 @@ class TestFormatSearchResults:
         assert "| 2021 | Article" in output
         assert f"Record ID: {record.record_id}" in output
 
+    def test_query_link_uses_normalised_field_alias(self, search_results_data):
+        response = SearchResponse.from_api_response(search_results_data)
+        output = format_search_results(
+            response,
+            "corporate governance",
+            config=_smu_config(),
+            field="subject",
+        )
+
+        assert "- [sub,contains,corporate governance](" in output
+
 
 class TestFormatRecordDetail:
     def test_formats_detail(self, search_results_data):
@@ -279,6 +290,21 @@ class TestBuildSearchUrl:
             "searchcreationdate,include,[2020 TO 2022]",
             "tlevel,include,peer_reviewed",
         ]
+
+    def test_search_url_normalises_aliases(self):
+        url = build_search_url(
+            "poverty",
+            _smu_config(),
+            field="subject",
+            sort_by="newest",
+            resource_type="book",
+        )
+        assert url is not None
+
+        params = parse_qs(urlparse(url).query)
+        assert params["query"] == ["sub,contains,poverty"]
+        assert params["sortby"] == ["date"]
+        assert params["facet"] == ["rtype,include,books"]
 
 
 class TestFormatSuggestions:

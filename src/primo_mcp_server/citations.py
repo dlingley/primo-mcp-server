@@ -347,13 +347,26 @@ _STYLE_MAP = {
 }
 
 
+def _record_type_key(resource_type: str) -> str:
+    """Normalise Primo record type labels for citation routing."""
+    return resource_type.strip().lower().replace("-", "_")
+
+
 def format_citation(record: PrimoRecord, style: str = "apa7") -> str:
     """Format a citation for a record in the specified style."""
+    style = style.strip().lower()
     style_funcs = _STYLE_MAP.get(style, _STYLE_MAP["apa7"])
 
     # Determine if article or book
-    rtype = record.resource_type.lower()
-    if rtype in ("article", "review", "newspaper_article"):
+    rtype = _record_type_key(record.resource_type)
+    if rtype in (
+        "article",
+        "articles",
+        "review",
+        "reviews",
+        "newspaper_article",
+        "newspaper_articles",
+    ):
         func = style_funcs["article"]
     else:
         func = style_funcs["book"]

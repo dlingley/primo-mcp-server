@@ -75,6 +75,15 @@ class TestCitations:
             assert len(citation) > 20
             assert response.records[0].title[:20] in citation
 
+    def test_style_and_plural_article_type_are_normalised(self):
+        record = self._make_article()
+        record.resource_type = "articles"
+
+        citation = format_citation(record, "APA7")
+
+        assert "Journal of Business Research" in citation
+        assert "Oxford University Press" not in citation
+
     def test_chinese_author_names_are_preserved(self):
         author = "\u88f4, \u5b9c\u7406."
         record = PrimoRecord(

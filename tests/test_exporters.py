@@ -38,6 +38,19 @@ class TestBibTeX:
         assert f"author = {{{author}}}" in output
         assert f"title = {{{title}}}" in output
 
+    def test_escapes_special_characters_and_maps_plural_conference_type(self):
+        record = PrimoRecord(
+            title="A_B & 100% {Test}",
+            resource_type="conference_proceedings",
+            creators=["Smith, John"],
+            creation_date="2024",
+        )
+
+        output = export_bibtex([record])
+
+        assert "@inproceedings{" in output
+        assert r"title = {A\_B \& 100\% \{Test\}}" in output
+
 
 class TestRIS:
     def test_article_export(self, search_results_data):
@@ -63,6 +76,18 @@ class TestRIS:
 
         assert f"AU  - {author}" in output
         assert f"TI  - {title}" in output
+
+    def test_plural_record_types_and_multiline_values_are_exported_safely(self):
+        output = export_ris([
+            PrimoRecord(
+                title="Conference Paper",
+                resource_type="conference_proceedings",
+                description="line one\nline two",
+            )
+        ])
+
+        assert "TY  - CONF" in output
+        assert "AB  - line one line two" in output
 
 
 class TestCSV:

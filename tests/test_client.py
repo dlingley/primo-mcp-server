@@ -93,6 +93,30 @@ class TestSearchRequestScopes:
 
 
 class TestSearchRequestFilters:
+    async def test_search_normalises_field_sort_and_resource_type_aliases(self):
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return _empty_response()
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, _config())
+            await client.search(
+                "Singapore",
+                field="subject",
+                sort_by="newest",
+                resource_type="book",
+            )
+
+        params = requests[0].url.params
+        assert params["q"] == "sub,contains,Singapore"
+        assert params["sortby"] == "date"
+        assert params["qInclude"] == "facet_rtype,exact,books"
+
     async def test_search_uses_documented_date_range_facet(self):
         requests: list[httpx.Request] = []
 
@@ -159,6 +183,34 @@ class TestSearchRequestFilters:
             "facet_searchcreationdate,exact,[2020 TO 2022]|,|"
             "facet_tlevel,exact,peer_reviewed"
         )
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"field": "badfield"},
+            {"sort_by": "recently"},
+            {"resource_type": "podcast"},
+            {"date_from": "20XX"},
+            {"date_to": "2022"},
+            {"date_from": "2024", "date_to": "2020"},
+        ],
+    )
+    async def test_invalid_search_parameters_do_not_make_request(self, kwargs):
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return _empty_response()
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, _config())
+            with pytest.raises(PrimoAPIError):
+                await client.search("Singapore", **kwargs)
+
+        assert requests == []
 
 
 class TestGetRecord:
@@ -268,6 +320,40 @@ class TestGetRecordDirect:
         assert record.record_id == "alma99317560802601"
         assert record.delivery_category == "Alma-P"
         assert len(requests) == 2
+
+    async def test_direct_lookup_url_encodes_record_id_path_segment(self):
+        token = _fake_jwt()
+        record_id = "cdi/example id:10.123/a b"
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if "guestJwt" in request.url.path:
+                return httpx.Response(200, json=token)
+            if "/pnxs/" in request.url.path:
+                assert (
+                    b"/pnxs/PC/cdi%2Fexample%20id%3A10.123%2Fa%20b"
+                    in request.url.raw_path
+                )
+                return httpx.Response(
+                    200,
+                    json={
+                        "context": "PC",
+                        "pnx": {
+                            "control": {"recordid": [record_id]},
+                            "display": {"title": ["Remote"], "type": ["article"]},
+                        },
+                    },
+                )
+            raise AssertionError(f"unexpected request: {request.url}")
+
+        async with httpx.AsyncClient(
+            base_url="https://example.test/primaws/rest/pub",
+            transport=httpx.MockTransport(handler),
+        ) as http_client:
+            client = PrimoClient(http_client, _config())
+            record = await client.get_record(record_id)
+
+        assert record is not None
+        assert record.record_id == record_id
 
     async def test_direct_lookup_refreshes_jwt_on_403(self):
         stale, fresh = _fake_jwt(3600), _fake_jwt(7200)

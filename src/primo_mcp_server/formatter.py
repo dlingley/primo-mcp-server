@@ -6,29 +6,19 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 from primo_mcp_server.models import PrimoRecord, SearchResponse
+from primo_mcp_server.query import (
+    date_range_facet_value,
+    normalise_resource_type,
+    normalise_scope,
+    normalise_search_field,
+    normalise_sort_by,
+)
 
 if TYPE_CHECKING:
     from primo_mcp_server.config import PrimoConfig
 
 
 _PRIMO_API_SUFFIX = "/primaws/rest/pub"
-_SCOPE_ALIASES = {
-    "catalogue": "catalogue",
-    "catalog": "catalogue",
-    "local": "catalogue",
-    "myinstitution": "catalogue",
-    "my_institution": "catalogue",
-    "everything": "everything",
-    "all": "everything",
-    "combined": "everything",
-    "myinst_and_ci": "everything",
-    "pci": "everything",
-    "books_videos": "books_videos",
-    "booksvideos": "books_videos",
-    "booksandvideos": "books_videos",
-    "books/videos": "books_videos",
-    "books & videos": "books_videos",
-}
 
 
 def _format_authors(creators: list[str], max_authors: int = 3) -> str:
@@ -88,8 +78,10 @@ def _discovery_app_base_url(config: PrimoConfig) -> str:
 
 def _search_scope_params(config: PrimoConfig, scope: str) -> tuple[str, str] | None:
     """Return Primo UI tab and search_scope values for a caller scope."""
-    key = scope.strip().lower().replace("-", "_") if scope else ""
-    canonical_scope = _SCOPE_ALIASES.get(key)
+    try:
+        canonical_scope = normalise_scope(scope)
+    except ValueError:
+        return None
     if canonical_scope == "catalogue":
         return config.tab_catalogue, config.scope_local
     if canonical_scope == "everything":
@@ -97,13 +89,6 @@ def _search_scope_params(config: PrimoConfig, scope: str) -> tuple[str, str] | N
     if canonical_scope == "books_videos":
         return config.tab_books_videos, config.scope_books_videos
     return None
-
-
-def _date_range_facet_value(date_from: str | None, date_to: str | None) -> str | None:
-    """Return Primo's documented creation-date range facet value."""
-    if not date_from:
-        return None
-    return f"[{date_from} TO {date_to or date_from}]"
 
 
 def _record_context(record: PrimoRecord) -> str:
@@ -170,6 +155,14 @@ def build_search_url(
     if not app_base or scope_params is None:
         return None
 
+    try:
+        field = normalise_search_field(field)
+        sort_by = normalise_sort_by(sort_by)
+        resource_type = normalise_resource_type(resource_type)
+        date_range = date_range_facet_value(date_from, date_to)
+    except ValueError:
+        return None
+
     tab, search_scope = scope_params
     if include_unavailable is None:
         include_unavailable = config.include_unavailable
@@ -186,7 +179,6 @@ def build_search_url(
         params.append(("sortby", sort_by))
     if resource_type:
         params.append(("facet", f"rtype,include,{resource_type}"))
-    date_range = _date_range_facet_value(date_from, date_to)
     if date_range:
         params.append(("facet", f"searchcreationdate,include,{date_range}"))
     if peer_reviewed:
@@ -246,7 +238,11 @@ def format_search_results(
         peer_reviewed=peer_reviewed,
         include_unavailable=include_unavailable,
     )
-    query_links = _format_query_links(query, field, search_url)
+    try:
+        query_field = normalise_search_field(field)
+    except ValueError:
+        query_field = field
+    query_links = _format_query_links(query, query_field, search_url)
 
     if not response.records:
         lines = [f'No results found for "{query}".', ""]

@@ -239,6 +239,7 @@ async def primo_cite(
         from primo_mcp_server.citations import format_citation
 
         valid_styles = {"apa7", "harvard", "chicago", "ieee", "vancouver"}
+        style = style.strip().lower()
         if style not in valid_styles:
             return f'Invalid citation style "{style}". Use one of: {", ".join(sorted(valid_styles))}'
 
@@ -284,6 +285,7 @@ async def primo_export(
         from primo_mcp_server.exporters import export_bibtex, export_csv, export_ris
 
         valid_formats = {"bibtex", "ris", "csv"}
+        format = format.strip().lower()
         if format not in valid_formats:
             return f'Invalid format "{format}". Use one of: {", ".join(sorted(valid_formats))}'
 

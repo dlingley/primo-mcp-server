@@ -6,43 +6,19 @@ import base64
 import json
 import time
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
 from primo_mcp_server.config import PrimoConfig
 from primo_mcp_server.models import PrimoRecord, SearchResponse
-
-
-_SCOPE_ALIASES = {
-    "catalogue": "catalogue",
-    "catalog": "catalogue",
-    "local": "catalogue",
-    "myinstitution": "catalogue",
-    "my_institution": "catalogue",
-    "everything": "everything",
-    "all": "everything",
-    "combined": "everything",
-    "myinst_and_ci": "everything",
-    "pci": "everything",
-    "books_videos": "books_videos",
-    "booksvideos": "books_videos",
-    "booksandvideos": "books_videos",
-    "books/videos": "books_videos",
-    "books & videos": "books_videos",
-}
-
-
-def _normalise_scope(scope: str) -> str:
-    """Resolve caller-friendly scope aliases to canonical scope names."""
-    key = scope.strip().lower().replace("-", "_") if scope else ""
-    try:
-        return _SCOPE_ALIASES[key]
-    except KeyError as e:
-        valid = ", ".join(sorted(set(_SCOPE_ALIASES.values())))
-        raise PrimoAPIError(
-            f'Invalid scope "{scope}". Use one of: {valid}.',
-            status_code=400,
-        ) from e
+from primo_mcp_server.query import (
+    date_range_facet_value,
+    normalise_resource_type,
+    normalise_scope,
+    normalise_search_field,
+    normalise_sort_by,
+)
 
 
 def _normalise_alma_id(record_id: str) -> str:
@@ -51,19 +27,45 @@ def _normalise_alma_id(record_id: str) -> str:
     return rid[4:] if rid.lower().startswith("alma") else rid
 
 
-def _date_range_facet_value(date_from: str | None, date_to: str | None) -> str | None:
-    """Return Primo's documented creation-date range facet value."""
-    if not date_from:
-        return None
-    return f"[{date_from} TO {date_to or date_from}]"
-
-
 class PrimoAPIError(Exception):
     """Raised when the Primo API returns an error."""
 
     def __init__(self, message: str, status_code: int | None = None):
         self.status_code = status_code
         super().__init__(message)
+
+
+def _normalise_parameter(func, *args):
+    """Convert query validation errors into MCP-facing Primo errors."""
+    try:
+        return func(*args)
+    except ValueError as e:
+        raise PrimoAPIError(str(e), status_code=400) from e
+
+
+def _normalise_scope(scope: str) -> str:
+    """Resolve caller-friendly scope aliases to canonical scope names."""
+    return _normalise_parameter(normalise_scope, scope)
+
+
+def _normalise_search_field(field: str) -> str:
+    """Resolve caller-friendly field aliases to Primo field names."""
+    return _normalise_parameter(normalise_search_field, field)
+
+
+def _normalise_sort_by(sort_by: str) -> str:
+    """Resolve caller-friendly sort aliases to Primo sort names."""
+    return _normalise_parameter(normalise_sort_by, sort_by)
+
+
+def _normalise_resource_type(resource_type: str | None) -> str | None:
+    """Resolve caller-friendly resource type aliases to Primo facet values."""
+    return _normalise_parameter(normalise_resource_type, resource_type)
+
+
+def _date_range_facet_value(date_from: str | None, date_to: str | None) -> str | None:
+    """Return Primo's documented creation-date range facet value."""
+    return _normalise_parameter(date_range_facet_value, date_from, date_to)
 
 
 class PrimoClient:
@@ -192,6 +194,10 @@ class PrimoClient:
             include_unavailable = cfg.include_unavailable
 
         canonical_scope = _normalise_scope(scope)
+        field = _normalise_search_field(field)
+        sort_by = _normalise_sort_by(sort_by)
+        resource_type = _normalise_resource_type(resource_type)
+        date_range = _date_range_facet_value(date_from, date_to)
 
         # Resolve scope to tab + scope params
         if canonical_scope == "catalogue":
@@ -220,7 +226,6 @@ class PrimoClient:
         q_include: list[str] = []
         if resource_type:
             q_include.append(f"facet_rtype,exact,{resource_type}")
-        date_range = _date_range_facet_value(date_from, date_to)
         if date_range:
             q_include.append(f"facet_searchcreationdate,exact,{date_range}")
         if peer_reviewed:
@@ -314,9 +319,10 @@ class PrimoClient:
     ) -> dict[str, Any] | str | None:
         """Return the direct doc, "auth" for 401/403, or None on failure."""
         cfg = self._config
+        encoded_record_id = quote(record_id, safe="")
         try:
             response = await self._http.get(
-                f"/pnxs/{context}/{record_id}",
+                f"/pnxs/{context}/{encoded_record_id}",
                 params={"vid": cfg.vid, "lang": cfg.language},
                 headers={"Authorization": f"Bearer {token}"},
             )

@@ -74,6 +74,18 @@ class TestPrimoRecord:
         record = PrimoRecord.from_api_doc(doc)
         assert record.doi == "10.1234/test"
 
+    def test_scalar_fields_are_normalised(self):
+        doc = {
+            "pnx": {
+                "display": {"title": "Test Title", "type": "book"},
+                "control": {"recordid": "test123", "score": 42},
+            }
+        }
+        record = PrimoRecord.from_api_doc(doc)
+        assert record.title == "Test Title"
+        assert record.record_id == "test123"
+        assert record.score == 42.0
+
 
 class TestNameCleaning:
     def test_strips_subfield_markers_from_creators(self):
@@ -298,6 +310,12 @@ class TestDoiAndIdentifierParsing:
             self._doc(["DOI: https://doi.org/10.1234/x"])
         )
         assert record.doi == "10.1234/x"
+
+    def test_bare_resolver_url_identifier_is_extracted(self):
+        record = PrimoRecord.from_api_doc(
+            self._doc(["https://doi.org/10.1234/bare"])
+        )
+        assert record.doi == "10.1234/bare"
 
     def test_semicolon_joined_subfield_identifiers_are_cleaned(self):
         record = PrimoRecord.from_api_doc(

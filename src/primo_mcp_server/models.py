@@ -8,17 +8,20 @@ everything into predictable types.
 from __future__ import annotations
 
 import re
+from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field
 
 
-def _to_list(v: str | list[str] | None) -> list[str]:
-    """Normalise a field that may be str, list[str], or None into list[str]."""
+def _to_list(v: Any) -> list[str]:
+    """Normalise a Primo field into a list of strings."""
     if v is None:
         return []
     if isinstance(v, str):
         return [v]
-    return list(v)
+    if isinstance(v, (list, tuple, set)):
+        return [str(item) for item in v if item is not None]
+    return [str(v)]
 
 
 def _first_or_empty(v: str | list[str] | None) -> str:
@@ -107,14 +110,16 @@ def _parse_identifiers(raw_values: list[str]) -> tuple[list[str], str]:
                 value = next(
                     (t.strip() for c, t in pairs if c == "V" and t.strip()), ""
                 ) or _strip_subfields(part)
-            elif ":" in part:
+            elif ":" in part and not part.lower().startswith(
+                ("http://", "https://")
+            ):
                 head, tail = part.split(":", 1)
                 if tail.strip():
                     code, value = head.strip(), tail.strip()
             if not value:
                 continue
             cleaned.append(f"{code}: {value}" if code else value)
-            if not doi and code.upper() == "DOI":
+            if not doi and (code.upper() == "DOI" or _DOI_PREFIX_RE.match(value)):
                 doi = _clean_doi(value)
     return cleaned, doi
 
@@ -181,22 +186,22 @@ class PrimoRecord(BaseModel):
     title: str = ""
     resource_type: str = ""
     language: str = ""
-    creators: list[str] = []
-    contributors: list[str] = []
+    creators: list[str] = Field(default_factory=list)
+    contributors: list[str] = Field(default_factory=list)
     publisher: str = ""
     creation_date: str = ""
     source_label: str = ""
     description: str = ""
     snippet: str = ""
-    subjects: list[str] = []
-    keywords: list[str] = []
+    subjects: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
     is_part_of: str = ""
 
     # Identifiers
-    identifiers: list[str] = []
+    identifiers: list[str] = Field(default_factory=list)
     doi: str = ""
-    isbn: list[str] = []
-    issn: list[str] = []
+    isbn: list[str] = Field(default_factory=list)
+    issn: list[str] = Field(default_factory=list)
 
     # Academic data
     journal_title: str = ""
@@ -206,8 +211,8 @@ class PrimoRecord(BaseModel):
     end_page: str = ""
     peer_reviewed: bool = False
     ris_type: str = ""
-    authors_structured: list[str] = []
-    additional_authors: list[str] = []
+    authors_structured: list[str] = Field(default_factory=list)
+    additional_authors: list[str] = Field(default_factory=list)
 
     # Availability
     fulltext_available: bool = False
@@ -270,10 +275,7 @@ class PrimoRecord(BaseModel):
 
         return cls(
             record_id=_first_or_empty(control.get("recordid")),
-            source_id=_first_or_empty(control.get("sourceid")) or _first_or_empty(
-                control.get("sourceid") if isinstance(control.get("sourceid"), str)
-                else (control.get("sourceid", [None]) or [None])[0]
-            ),
+            source_id=_first_or_empty(control.get("sourceid")),
             source_system=_first_or_empty(control.get("sourcesystem")),
             title=_strip_subfields(_first_or_empty(display.get("title"))),
             resource_type=_first_or_empty(display.get("type")),
@@ -355,8 +357,8 @@ class SearchInfo(BaseModel):
 class SearchResponse(BaseModel):
     """Parsed Primo search response."""
 
-    info: SearchInfo = SearchInfo()
-    records: list[PrimoRecord] = []
+    info: SearchInfo = Field(default_factory=SearchInfo)
+    records: list[PrimoRecord] = Field(default_factory=list)
 
     @property
     def total_results(self) -> int:

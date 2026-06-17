@@ -9,6 +9,11 @@ import re
 from primo_mcp_server.models import PrimoRecord
 
 
+def _record_type_key(resource_type: str) -> str:
+    """Normalise Primo record type labels for export mapping."""
+    return resource_type.strip().lower().replace("-", "_")
+
+
 def _bibtex_key(record: PrimoRecord) -> str:
     """Generate a BibTeX citation key from author and year."""
     first_author = ""
@@ -39,7 +44,29 @@ def _bibtex_key(record: PrimoRecord) -> str:
 
 def _bibtex_escape(value: str) -> str:
     """Escape special BibTeX characters."""
-    return value.replace("&", r"\&").replace("%", r"\%").replace("#", r"\#")
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "{": r"\{",
+        "}": r"\}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+    }
+    return "".join(replacements.get(char, char) for char in value)
+
+
+def _ris_value(value: str) -> str:
+    """Collapse newlines in RIS field values so records stay one field per line."""
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _append_ris(lines: list[str], tag: str, value: str) -> None:
+    """Append a non-empty RIS field with whitespace-safe content."""
+    cleaned = _ris_value(value)
+    if cleaned:
+        lines.append(f"{tag}  - {cleaned}")
 
 
 def export_bibtex(records: list[PrimoRecord]) -> str:
@@ -49,12 +76,19 @@ def export_bibtex(records: list[PrimoRecord]) -> str:
 
     for record in records:
         # Determine entry type
-        rtype = record.resource_type.lower()
-        if rtype in ("article", "review"):
+        rtype = _record_type_key(record.resource_type)
+        if rtype in (
+            "article",
+            "articles",
+            "review",
+            "reviews",
+            "newspaper_article",
+            "newspaper_articles",
+        ):
             entry_type = "article"
-        elif rtype in ("conference_proceeding",):
+        elif rtype in ("conference_proceeding", "conference_proceedings"):
             entry_type = "inproceedings"
-        elif rtype in ("dissertation", "thesis"):
+        elif rtype in ("dissertation", "dissertations", "thesis", "theses"):
             entry_type = "phdthesis"
         else:
             entry_type = "book"
@@ -113,61 +147,70 @@ def export_ris(records: list[PrimoRecord]) -> str:
         lines = []
 
         # Type
-        rtype = record.resource_type.lower()
+        rtype = _record_type_key(record.resource_type)
         ris_type_map = {
             "article": "JOUR",
+            "articles": "JOUR",
             "review": "JOUR",
+            "reviews": "JOUR",
             "book": "BOOK",
+            "books": "BOOK",
             "journal": "JFULL",
+            "journals": "JFULL",
             "conference_proceeding": "CONF",
+            "conference_proceedings": "CONF",
             "dissertation": "THES",
+            "dissertations": "THES",
+            "thesis": "THES",
+            "theses": "THES",
             "newspaper_article": "NEWS",
+            "newspaper_articles": "NEWS",
         }
         lines.append(f"TY  - {ris_type_map.get(rtype, 'GEN')}")
 
         # Authors
         authors = record.display_authors
         for author in authors:
-            lines.append(f"AU  - {author}")
+            _append_ris(lines, "AU", author)
 
-        lines.append(f"TI  - {record.title}")
+        _append_ris(lines, "TI", record.title)
 
         if record.journal_title:
-            lines.append(f"JO  - {record.journal_title}")
-            lines.append(f"T2  - {record.journal_title}")
+            _append_ris(lines, "JO", record.journal_title)
+            _append_ris(lines, "T2", record.journal_title)
 
         year = record.year
         if year:
-            lines.append(f"PY  - {year}")
-            lines.append(f"DA  - {record.creation_date}")
+            _append_ris(lines, "PY", year)
+            _append_ris(lines, "DA", record.creation_date)
 
         if record.volume:
-            lines.append(f"VL  - {record.volume}")
+            _append_ris(lines, "VL", record.volume)
         if record.issue:
-            lines.append(f"IS  - {record.issue}")
+            _append_ris(lines, "IS", record.issue)
         if record.start_page:
-            lines.append(f"SP  - {record.start_page}")
+            _append_ris(lines, "SP", record.start_page)
         if record.end_page:
-            lines.append(f"EP  - {record.end_page}")
+            _append_ris(lines, "EP", record.end_page)
 
         if record.publisher:
-            lines.append(f"PB  - {record.publisher}")
+            _append_ris(lines, "PB", record.publisher)
 
         if record.doi:
-            lines.append(f"DO  - {record.doi}")
+            _append_ris(lines, "DO", record.doi)
         if record.isbn:
-            lines.append(f"SN  - {record.isbn[0]}")
+            _append_ris(lines, "SN", record.isbn[0])
         elif record.issn:
-            lines.append(f"SN  - {record.issn[0]}")
+            _append_ris(lines, "SN", record.issn[0])
 
         if record.description:
-            lines.append(f"AB  - {record.description}")
+            _append_ris(lines, "AB", record.description)
 
         for subject in record.subjects:
-            lines.append(f"KW  - {subject}")
+            _append_ris(lines, "KW", subject)
 
         if record.language:
-            lines.append(f"LA  - {record.language}")
+            _append_ris(lines, "LA", record.language)
 
         lines.append("ER  - ")
         entries.append("\n".join(lines))

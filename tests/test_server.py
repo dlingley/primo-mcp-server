@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from primo_mcp_server.config import PrimoConfig
 from primo_mcp_server.models import PrimoRecord, SearchResponse
-from primo_mcp_server.server import primo_get_record, primo_search
+from primo_mcp_server.server import primo_cite, primo_export, primo_get_record, primo_search
 
 
 class _FakeClient:
@@ -28,6 +28,18 @@ class _FakeClient:
             title="Executive Compensation Data",
             resource_type="database",
         )
+
+    async def get_records(self, record_ids: list[str]) -> list[PrimoRecord]:
+        return [
+            PrimoRecord(
+                record_id=record_id,
+                title="Executive Compensation Data",
+                resource_type="book",
+                creators=["Tan, Mei"],
+                creation_date="2024",
+            )
+            for record_id in record_ids
+        ]
 
 
 def _fake_context() -> SimpleNamespace:
@@ -60,3 +72,17 @@ async def test_primo_get_record_smoke_does_not_return_unexpected_error():
 
     assert "Unexpected error" not in output
     assert "Executive Compensation Data" in output
+
+
+async def test_primo_cite_accepts_case_insensitive_style():
+    output = await primo_cite(_fake_context(), ["alma123"], style="APA7")
+
+    assert "Unexpected error" not in output
+    assert "Executive Compensation Data" in output
+
+
+async def test_primo_export_accepts_case_insensitive_format():
+    output = await primo_export(_fake_context(), ["alma123"], format="BibTeX")
+
+    assert "Unexpected error" not in output
+    assert "@book{" in output
