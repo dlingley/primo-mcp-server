@@ -62,7 +62,7 @@ async def test_primo_search_smoke_does_not_return_unexpected_error():
 
     assert "Unexpected error" not in output
     assert "Queries run:" in output
-    assert "- [any,contains,ceo compensation](" in output
+    assert "- Results found: [any,contains,ceo compensation](" in output
     assert "pcAvailability=true" in output
     assert "Executive Compensation Data" in output
 

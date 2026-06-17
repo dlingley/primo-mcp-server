@@ -40,7 +40,7 @@ class TestFormatSearchResults:
         output = format_search_results(response, "xyzzyplugh99999", config=_smu_config())
         assert "No results found" in output
         assert "Queries run:" in output
-        assert "- [any,contains,xyzzyplugh99999](" in output
+        assert "- No results: [any,contains,xyzzyplugh99999](" in output
         assert "Suggestions" in output
         assert output.index("Queries run:") < output.index("Suggestions")
 
@@ -55,11 +55,12 @@ class TestFormatSearchResults:
         assert "Found" in output
         assert "results" in output
 
-    def test_formats_results_without_query_argument(self, search_results_data):
+    def test_formats_results_without_query_argument_still_links_search(self, search_results_data):
         response = SearchResponse.from_api_response(search_results_data)
         output = format_search_results(response, config=_smu_config())
         assert "Found" in output
-        assert "Queries run:" not in output
+        assert "Queries run:" in output
+        assert "- Results found: [any,contains,](" in output
 
     def test_keeps_plain_titles_without_config(self, search_results_data):
         response = SearchResponse.from_api_response(search_results_data)
@@ -75,11 +76,12 @@ class TestFormatSearchResults:
         output = format_search_results(response, "test", config=_smu_config())
 
         assert "Queries run:" in output
-        assert "- [any,contains,test](" in output
+        assert "- Results found: [any,contains,test](" in output
         assert output.index("Queries run:") < output.index("[1]")
         assert f"[1] [{record.title}](" in output
         assert "Berger, Elisabeth S.C." in output
         assert "| 2021 | Article" in output
+        assert "Availability:" in output
         assert f"Record ID: {record.record_id}" in output
 
     def test_query_link_uses_normalised_field_alias(self, search_results_data):
@@ -91,7 +93,30 @@ class TestFormatSearchResults:
             field="subject",
         )
 
-        assert "- [sub,contains,corporate governance](" in output
+        assert "- Results found: [sub,contains,corporate governance](" in output
+
+    def test_result_options_include_relevance_metadata(self):
+        record = PrimoRecord(
+            record_id="alma99908902601",
+            title="Social Services Abstracts.",
+            resource_type="database",
+            subjects=["Social Sciences", "Sociology", "Volunteering", "Singapore"],
+            keywords=["Nonprofit organisations", "Community service"],
+            language="eng",
+            source_label="Alma",
+            delivery_category="Alma-E",
+        )
+        response = SearchResponse.model_validate(
+            {"info": {"total": 1}, "records": [record]}
+        )
+
+        output = format_search_results(response, "volunteer", config=_smu_config())
+
+        assert "Subjects: Social Sciences; Sociology; Volunteering; Singapore" in output
+        assert "Keywords: Nonprofit organisations; Community service" in output
+        assert "Language: eng | Source: Alma" in output
+        assert "Availability: Alma-E" in output
+        assert "Record ID: alma99908902601" in output
 
 
 class TestFormatRecordDetail:

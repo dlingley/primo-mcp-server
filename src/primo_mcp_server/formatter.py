@@ -42,6 +42,15 @@ def _format_identifiers(record: PrimoRecord) -> str:
     return " | ".join(parts) if parts else ""
 
 
+def _format_preview(values: list[str], max_items: int = 4) -> str:
+    """Format a short metadata preview for search-result snippets."""
+    if not values:
+        return ""
+    shown = values[:max_items]
+    suffix = " et al." if len(values) > max_items else ""
+    return "; ".join(shown) + suffix
+
+
 def _format_availability(record: PrimoRecord) -> str:
     """Format availability information."""
     parts = []
@@ -147,7 +156,7 @@ def build_search_url(
     include_unavailable: bool | None = None,
 ) -> str | None:
     """Build a direct Primo UI search URL for the search response."""
-    if config is None or not query or not config.vid:
+    if config is None or not config.vid:
         return None
 
     app_base = _discovery_app_base_url(config)
@@ -192,11 +201,18 @@ def _markdown_link_text(text: str) -> str:
     return text.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
 
 
-def _format_query_links(query: str, field: str, search_url: str | None) -> list[str]:
+def _format_query_links(
+    query: str,
+    field: str,
+    search_url: str | None,
+    *,
+    has_results: bool,
+) -> list[str]:
     if not search_url:
         return []
     query_label = _markdown_link_text(f"{field},contains,{query}")
-    return ["Queries run:", f"- [{query_label}]({search_url})", ""]
+    result_label = "Results found" if has_results else "No results"
+    return ["Queries run:", f"- {result_label}: [{query_label}]({search_url})", ""]
 
 
 def _format_title(record: PrimoRecord, config: PrimoConfig | None = None) -> str:
@@ -242,7 +258,12 @@ def format_search_results(
         query_field = normalise_search_field(field)
     except ValueError:
         query_field = field
-    query_links = _format_query_links(query, query_field, search_url)
+    query_links = _format_query_links(
+        query,
+        query_field,
+        search_url,
+        has_results=bool(response.records),
+    )
 
     if not response.records:
         lines = [f'No results found for "{query}".', ""]
@@ -298,11 +319,27 @@ def format_search_results(
         if source_parts:
             lines.append(f"    {' | '.join(source_parts)}")
 
-        # Line 4: availability + peer review + record ID
+        subject_preview = _format_preview(record.subjects)
+        if subject_preview:
+            lines.append(f"    Subjects: {subject_preview}")
+
+        keyword_preview = _format_preview(record.keywords)
+        if keyword_preview:
+            lines.append(f"    Keywords: {keyword_preview}")
+
+        context_parts = []
+        if record.language:
+            context_parts.append(f"Language: {record.language}")
+        if record.source_label:
+            context_parts.append(f"Source: {record.source_label}")
+        if context_parts:
+            lines.append(f"    {' | '.join(context_parts)}")
+
+        # Final line: availability + peer review + record ID
         status_parts = []
         if record.peer_reviewed:
             status_parts.append("Peer-reviewed")
-        status_parts.append(_format_availability(record))
+        status_parts.append(f"Availability: {_format_availability(record)}")
         lines.append(f"    {' | '.join(status_parts)}")
         lines.append(f"    Record ID: {record.record_id}")
         lines.append("")

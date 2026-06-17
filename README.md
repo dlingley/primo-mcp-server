@@ -10,7 +10,7 @@ and Unicode-safe handling for Chinese records.
 ## Features
 
 - Search Primo catalogue, Primo Central Index, books/videos scopes, and subscribed databases
-- Return direct Primo links for searches and individual records
+- Always return direct Primo search links and individual record links
 - Get record details including title, authors, identifiers, subjects, description, source, availability, and record ID
 - Preserve Chinese and other Unicode metadata in search results, details, citations, and exports
 - Generate citations in APA 7th, Harvard, Chicago, IEEE, and Vancouver styles
