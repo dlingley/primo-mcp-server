@@ -361,12 +361,22 @@ async def springshare_search_databases(ctx: Context, query: str) -> str:
             url = db.get("url", "")
             description = db.get("description", "")
             vendor = db.get("az_vendor_name", "")
+            db_id = db.get("id")
             
-            # Format title as link
-            title_line = f"### [{name}]({url})" if url else f"### {name}"
+            permalink = f"https://guides.lib.purdue.edu/az/databases?a={db_id}" if db_id else None
+            
+            title_line = f"### {name}"
             if vendor:
                 title_line += f" (Provider: {vendor})"
             lines.append(title_line)
+            
+            links = []
+            if url:
+                links.append(f"[Direct Link]({url})")
+            if permalink:
+                links.append(f"[LibGuides Permalink]({permalink})")
+            if links:
+                lines.append(f"**Links**: {' | '.join(links)}")
             
             if description:
                 lines.append(description)
