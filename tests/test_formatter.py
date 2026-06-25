@@ -15,11 +15,11 @@ from primo_mcp_server.formatter import (
 from primo_mcp_server.models import PrimoRecord, SearchResponse
 
 
-def _smu_config(**overrides) -> PrimoConfig:
+def _purdue_config(**overrides) -> PrimoConfig:
     values = {
-        "base_url": "https://search.library.smu.edu.sg/primaws/rest/pub",
+        "base_url": "https://purdue.primo.exlibrisgroup.com/primaws/rest/pub",
         "discovery_base_url": None,
-        "vid": "65SMU_INST:SMU_NUI",
+        "vid": "01PURDUE_PUWL:PURDUE",
         "language": "en",
         "_env_file": None,
     }
@@ -38,7 +38,7 @@ class TestFormatSearchResults:
 
     def test_empty_results_message(self, empty_results_data):
         response = SearchResponse.from_api_response(empty_results_data)
-        output = format_search_results(response, "xyzzyplugh99999", config=_smu_config())
+        output = format_search_results(response, "xyzzyplugh99999", config=_purdue_config())
         assert "No results found" in output
         assert "Queries run:" in output
         assert "- No results: [any,contains,xyzzyplugh99999](" in output
@@ -58,7 +58,7 @@ class TestFormatSearchResults:
 
     def test_formats_results_without_query_argument_still_links_search(self, search_results_data):
         response = SearchResponse.from_api_response(search_results_data)
-        output = format_search_results(response, config=_smu_config())
+        output = format_search_results(response, config=_purdue_config())
         assert "Found" in output
         assert "Queries run:" in output
         assert "- Results found: [any,contains,](" in output
@@ -74,7 +74,7 @@ class TestFormatSearchResults:
     def test_links_search_result_titles(self, search_results_data):
         response = SearchResponse.from_api_response(search_results_data)
         record = response.records[0]
-        output = format_search_results(response, "test", config=_smu_config())
+        output = format_search_results(response, "test", config=_purdue_config())
 
         assert "Queries run:" in output
         assert "- Results found: [any,contains,test](" in output
@@ -90,7 +90,7 @@ class TestFormatSearchResults:
         output = format_search_results(
             response,
             "corporate governance",
-            config=_smu_config(),
+            config=_purdue_config(),
             field="subject",
         )
 
@@ -111,7 +111,7 @@ class TestFormatSearchResults:
             {"info": {"total": 1}, "records": [record]}
         )
 
-        output = format_search_results(response, "volunteer", config=_smu_config())
+        output = format_search_results(response, "volunteer", config=_purdue_config())
 
         assert "Subjects: Social Sciences; Sociology; Volunteering; Singapore" in output
         assert "Keywords: Nonprofit organisations; Community service" in output
@@ -140,7 +140,7 @@ class TestFormatRecordDetail:
     def test_links_detail_title(self, search_results_data):
         response = SearchResponse.from_api_response(search_results_data)
         record = response.records[0]
-        output = format_record_detail(record, config=_smu_config())
+        output = format_record_detail(record, config=_purdue_config())
 
         assert f"Title: [{record.title}](" in output
         assert "Author(s):" in output
@@ -161,7 +161,7 @@ class TestFormatRecordDetail:
                 {"info": {"total": 1}, "records": [record]}
             ),
             "\u5b89\u6e90",
-            config=_smu_config(),
+            config=_purdue_config(),
         )
 
         assert f"[{title}](" in output
@@ -172,7 +172,7 @@ class TestFormatRecordDetail:
 class TestBuildRecordUrl:
     def test_alma_record_uses_local_context(self):
         record = PrimoRecord(record_id="alma99862242402601")
-        url = build_record_url(record, _smu_config())
+        url = build_record_url(record, _purdue_config())
         assert url is not None
 
         params = parse_qs(urlparse(url).query)
@@ -181,7 +181,7 @@ class TestBuildRecordUrl:
 
     def test_cdi_record_uses_pc_context(self):
         record = PrimoRecord(record_id="cdi_gale_onefilemisc_PPGS_A666195044")
-        url = build_record_url(record, _smu_config())
+        url = build_record_url(record, _purdue_config())
         assert url is not None
 
         params = parse_qs(urlparse(url).query)
@@ -190,18 +190,18 @@ class TestBuildRecordUrl:
 
     def test_derives_discovery_base_url_from_api_base_url(self):
         record = PrimoRecord(record_id="alma99862242402601")
-        url = build_record_url(record, _smu_config())
+        url = build_record_url(record, _purdue_config())
         assert url is not None
 
         parsed = urlparse(url)
         assert (
             f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-            == "https://search.library.smu.edu.sg/discovery/fulldisplay"
+            == "https://purdue.primo.exlibrisgroup.com/discovery/fulldisplay"
         )
 
     def test_explicit_discovery_base_url_override(self):
         record = PrimoRecord(record_id="alma99862242402601")
-        config = _smu_config(
+        config = _purdue_config(
             base_url="https://api.example.edu/primaws/rest/pub",
             discovery_base_url="https://catalogue.example.edu/discovery",
         )
@@ -216,19 +216,19 @@ class TestBuildRecordUrl:
 
     def test_escapes_record_id_and_vid_values(self):
         record = PrimoRecord(record_id="cdi/example id:10.123/a b")
-        url = build_record_url(record, _smu_config())
+        url = build_record_url(record, _purdue_config())
         assert url is not None
 
         assert "docid=cdi%2Fexample+id%3A10.123%2Fa+b" in url
-        assert "vid=65SMU_INST%3ASMU_NUI" in url
+        assert "vid=01PURDUE_PUWL%3APURDUE" in url
 
     def test_returns_none_without_record_id(self):
         record = PrimoRecord(title="Untitled")
-        assert build_record_url(record, _smu_config()) is None
+        assert build_record_url(record, _purdue_config()) is None
 
     def test_record_link_alias_matches_build_record_url(self):
         record = PrimoRecord(record_id="alma99862242402601")
-        config = _smu_config()
+        config = _purdue_config()
         assert record_link(record, config) == build_record_url(record, config)
 
 
@@ -236,7 +236,7 @@ class TestBuildSearchUrl:
     def test_catalogue_search_url_uses_ui_scope_params(self):
         url = build_search_url(
             "anthropic principle",
-            _smu_config(),
+            _purdue_config(),
             field="title",
             scope="catalogue",
             offset=20,
@@ -248,12 +248,12 @@ class TestBuildSearchUrl:
         params = parse_qs(parsed.query)
         assert (
             f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-            == "https://search.library.smu.edu.sg/discovery/search"
+            == "https://purdue.primo.exlibrisgroup.com/discovery/search"
         )
         assert params["query"] == ["title,contains,anthropic principle"]
         assert params["tab"] == ["Catalogue"]
         assert params["search_scope"] == ["MyInstitution"]
-        assert params["vid"] == ["65SMU_INST:SMU_NUI"]
+        assert params["vid"] == ["01PURDUE_PUWL:PURDUE"]
         assert params["offset"] == ["20"]
         assert params["pcAvailability"] == ["false"]
         assert params["facet"] == ["rtype,include,books"]
@@ -261,7 +261,7 @@ class TestBuildSearchUrl:
     def test_search_url_can_include_unavailable_records(self):
         url = build_search_url(
             "audit fees",
-            _smu_config(),
+            _purdue_config(),
             include_unavailable=True,
         )
         assert url is not None
@@ -270,7 +270,7 @@ class TestBuildSearchUrl:
         assert params["pcAvailability"] == ["true"]
 
     def test_everything_search_url_uses_combined_scope(self):
-        url = build_search_url("open access", _smu_config(), scope="everything")
+        url = build_search_url("open access", _purdue_config(), scope="everything")
         assert url is not None
 
         params = parse_qs(urlparse(url).query)
@@ -278,7 +278,7 @@ class TestBuildSearchUrl:
         assert params["search_scope"] == ["MyInst_and_CI"]
 
     def test_books_videos_search_url_uses_books_videos_scope(self):
-        url = build_search_url("cinema", _smu_config(), scope="books & videos")
+        url = build_search_url("cinema", _purdue_config(), scope="books & videos")
         assert url is not None
 
         params = parse_qs(urlparse(url).query)
@@ -288,7 +288,7 @@ class TestBuildSearchUrl:
     def test_search_url_escapes_chinese_query_and_filters(self):
         url = build_search_url(
             "\u5b89\u6e90",
-            _smu_config(),
+            _purdue_config(),
             date_from="2014",
             peer_reviewed=True,
         )
@@ -302,7 +302,7 @@ class TestBuildSearchUrl:
     def test_search_url_uses_date_range_facet(self):
         url = build_search_url(
             "open access",
-            _smu_config(),
+            _purdue_config(),
             resource_type="articles",
             date_from="2020",
             date_to="2022",
@@ -320,7 +320,7 @@ class TestBuildSearchUrl:
     def test_search_url_normalises_aliases(self):
         url = build_search_url(
             "poverty",
-            _smu_config(),
+            _purdue_config(),
             field="subject",
             sort_by="newest",
             resource_type="book",
@@ -377,7 +377,7 @@ class TestRecordContextMatching:
             record_id="cdi_test_almanac", title="T",
             source_label="World Almanac Education",
         )
-        url = build_record_url(record, _smu_config())
+        url = build_record_url(record, _purdue_config())
         assert "context=PC" in url
 
     def test_alma_source_values_are_local(self):
@@ -385,7 +385,7 @@ class TestRecordContextMatching:
             record = PrimoRecord(
                 record_id="990012345", title="T", **{field: "Alma"}
             )
-            url = build_record_url(record, _smu_config())
+            url = build_record_url(record, _purdue_config())
             assert "context=L" in url, field
 
     def test_explicit_context_still_wins(self):
@@ -393,5 +393,5 @@ class TestRecordContextMatching:
             record_id="990012345", title="T", context="L",
             source_label="World Almanac Education",
         )
-        url = build_record_url(record, _smu_config())
+        url = build_record_url(record, _purdue_config())
         assert "context=L" in url

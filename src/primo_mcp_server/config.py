@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class PrimoConfig(BaseSettings):
     """Primo API configuration.
 
-    Defaults are set for SMU (Singapore Management University).
+    Defaults are set for Purdue University.
     Override via environment variables with the PRIMO_ prefix,
     or via a .env file in the working directory.
     """
@@ -14,13 +14,13 @@ class PrimoConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PRIMO_", env_file=".env")
 
     # Institution-specific
-    base_url: str = "https://search.library.smu.edu.sg/primaws/rest/pub"
+    base_url: str = "https://purdue.primo.exlibrisgroup.com/primaws/rest/pub"
     discovery_base_url: str | None = None
-    vid: str = "65SMU_INST:SMU_NUI"
+    vid: str = "01PURDUE_PUWL:PURDUE"
     # Institution code for the guest JWT endpoint. Derived from the part of
     # vid before the colon when not set explicitly.
     institution_code: str | None = None
-    institution_name: str = "SMU"
+    institution_name: str = "Purdue University"
     tab_everything: str = "Everything"
     tab_catalogue: str = "Catalogue"
     tab_books_videos: str = "booksandvideos"

@@ -33,7 +33,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[dict]:
 mcp = FastMCP(
     "primo",
     instructions=(
-        "Search Singapore Management University Library catalogue records, "
+        "Search Purdue University Libraries catalogue records, "
         "articles, databases, books, videos, and holdings via the Ex Libris "
         "Primo discovery API. "
         "Scope selection policy: when asked to search the catalogue, call "
@@ -84,7 +84,7 @@ async def primo_search(
     include_unavailable: bool | None = None,
     online: bool | None = None,
 ) -> str:
-    """Search Singapore Management University Library via Primo.
+    """Search Purdue University Libraries via Primo.
 
     Scope selection policy for callers:
     - When asked to search the catalogue, use scope="catalogue" first. If

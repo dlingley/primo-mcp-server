@@ -5,7 +5,7 @@ from __future__ import annotations
 from primo_mcp_server.config import PrimoConfig
 
 
-def test_default_config_is_smu(monkeypatch):
+def test_default_config_is_purdue(monkeypatch):
     for key in (
         "PRIMO_BASE_URL",
         "PRIMO_DISCOVERY_BASE_URL",
@@ -22,10 +22,10 @@ def test_default_config_is_smu(monkeypatch):
 
     config = PrimoConfig(_env_file=None)
 
-    assert config.base_url == "https://search.library.smu.edu.sg/primaws/rest/pub"
+    assert config.base_url == "https://purdue.primo.exlibrisgroup.com/primaws/rest/pub"
     assert config.discovery_base_url is None
-    assert config.vid == "65SMU_INST:SMU_NUI"
-    assert config.institution_name == "SMU"
+    assert config.vid == "01PURDUE_PUWL:PURDUE"
+    assert config.institution_name == "Purdue University"
     assert config.tab_catalogue == "Catalogue"
     assert config.tab_everything == "Everything"
     assert config.tab_books_videos == "booksandvideos"

@@ -1,7 +1,7 @@
 # Primo MCP Server
 
-MCP server for Singapore Management University library discovery via Ex
-Libris Primo. It searches SMU catalogue records, subscribed databases,
+MCP server for Purdue University library discovery via Ex
+Libris Primo. It searches Purdue catalogue records, subscribed databases,
 articles, books, videos, and database records through the Primo API.
 
 This fork includes hardened scope handling, direct Primo record/search links,
@@ -17,7 +17,7 @@ and Unicode-safe handling for Chinese records.
 - Export records to BibTeX, RIS, or UTF-8-sig CSV
 - Reject invalid search scopes instead of silently falling back to Everything
 
-## Quick Start for SMU
+## Quick Start for Purdue
 
 Clone and install the fork:
 
@@ -77,16 +77,16 @@ Recommended caller policy:
 - For catalogue searches with no results, retry with `scope="everything"` only when the user did not ask for catalogue-only results.
 - For access or subscription checks, use Primo results as the evidence source rather than websites or LibGuides.
 
-## SMU Configuration
+## Purdue Configuration
 
-SMU is the default configuration for this fork. You can run without a `.env`
-file for SMU, or create one to make the settings explicit:
+Purdue is the default configuration for this fork. You can run without a `.env`
+file for Purdue, or create one to make the settings explicit:
 
 ```env
-PRIMO_BASE_URL=https://search.library.smu.edu.sg/primaws/rest/pub
-PRIMO_DISCOVERY_BASE_URL=https://search.library.smu.edu.sg/discovery
-PRIMO_VID=65SMU_INST:SMU_NUI
-PRIMO_INSTITUTION_NAME=SMU
+PRIMO_BASE_URL=https://purdue.primo.exlibrisgroup.com/primaws/rest/pub
+PRIMO_DISCOVERY_BASE_URL=https://purdue.primo.exlibrisgroup.com/discovery
+PRIMO_VID=01PURDUE_PUWL:PURDUE
+PRIMO_INSTITUTION_NAME=Purdue University
 
 PRIMO_TAB_EVERYTHING=Everything
 PRIMO_TAB_CATALOGUE=Catalogue
@@ -104,16 +104,16 @@ PRIMO_DEFAULT_RESULTS=10
 
 ## Configuration Reference
 
-Defaults are set for SMU. Other institutions can override these values with
+Defaults are set for Purdue. Other institutions can override these values with
 environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PRIMO_BASE_URL` | `https://search.library.smu.edu.sg/primaws/rest/pub` | Primo API base URL |
+| `PRIMO_BASE_URL` | `https://purdue.primo.exlibrisgroup.com/primaws/rest/pub` | Primo API base URL |
 | `PRIMO_DISCOVERY_BASE_URL` | Derived from `PRIMO_BASE_URL` | Primo web app base URL for record and search links |
-| `PRIMO_VID` | `65SMU_INST:SMU_NUI` | Primo view ID |
+| `PRIMO_VID` | `01PURDUE_PUWL:PURDUE` | Primo view ID |
 | `PRIMO_INSTITUTION_CODE` | Derived from `PRIMO_VID` | Institution code for the guest JWT endpoint |
-| `PRIMO_INSTITUTION_NAME` | `SMU` | Display name |
+| `PRIMO_INSTITUTION_NAME` | `Purdue University` | Display name |
 | `PRIMO_TAB_EVERYTHING` | `Everything` | Primo tab for combined local and CDI searches |
 | `PRIMO_TAB_CATALOGUE` | `Catalogue` | Primo tab for local catalogue searches |
 | `PRIMO_TAB_BOOKS_VIDEOS` | `booksandvideos` | Primo tab for books/videos searches |

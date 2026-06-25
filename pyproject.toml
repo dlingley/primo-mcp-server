@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "primo-mcp-server"
 version = "0.1.0"
-description = "SMU-focused MCP server for searching Singapore Management University Library Primo catalogue, articles, databases, and records."
+description = "Purdue-focused MCP server for searching Purdue University Libraries Primo catalogue, articles, databases, and records."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
