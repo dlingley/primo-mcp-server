@@ -11,7 +11,11 @@ class PrimoConfig(BaseSettings):
     or via a .env file in the working directory.
     """
 
-    model_config = SettingsConfigDict(env_prefix="PRIMO_", env_file=".env")
+    model_config = SettingsConfigDict(
+        env_prefix="PRIMO_",
+        env_file=".env",
+        extra="ignore"
+    )
 
     # Institution-specific
     base_url: str = "https://purdue.primo.exlibrisgroup.com/primaws/rest/pub"
