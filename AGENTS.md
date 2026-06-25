@@ -1,6 +1,6 @@
 # Primo MCP Server
 
-Purdue-focused MCP server for searching Purdue University Library
+Purdue-focused MCP server for searching Purdue University Libraries
 Primo catalogue, articles, databases, books, videos, and records through the Ex
 Libris Primo discovery API.
 
