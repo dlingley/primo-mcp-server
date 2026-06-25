@@ -33,10 +33,31 @@ class PrimoConfig(BaseSettings):
     max_results_per_request: int = 50
     default_results: int = 10
     language: str = "en"
-    user_agent: str = "primo-mcp-server/0.1.0"
+    user_agent: str = "purduelibrary-mcp-server/0.1.0"
     # Default for the Primo pcAvailability search parameter. When False,
     # CDI (Central Discovery Index) results are restricted to material the
     # institution has full text access to; when True the search is
     # "expanded" and includes records with no access. False is the safer
     # default for holdings-confirmation queries.
     include_unavailable: bool = False
+
+
+class SpringshareConfig(BaseSettings):
+    """Springshare LibGuides API configuration.
+
+    Override via environment variables with the SPRINGSHARE_ prefix,
+    or via a .env file in the working directory.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="SPRINGSHARE_",
+        env_file=".env",
+        extra="ignore"
+    )
+
+    libguides_base_url: str = "https://lgapi-us.libapps.com/1.2"
+    client_id: str | None = None
+    client_secret: str | None = None
+    request_timeout: float = 30.0
+    user_agent: str = "purduelibrary-mcp-server/0.1.0"
+

@@ -15,12 +15,12 @@ This is the canonical agent guidance file for this fork.
 
 ## Key Files
 
-- `src/primo_mcp_server/server.py` -- MCP tool definitions and lifespan
-- `src/primo_mcp_server/client.py` -- Primo API HTTP client
-- `src/primo_mcp_server/models.py` -- Pydantic models for PNX response normalisation
-- `src/primo_mcp_server/formatter.py` -- Compact text output for LLM context
-- `src/primo_mcp_server/citations.py` -- Citation formatting (APA7, Harvard, Chicago, IEEE, Vancouver)
-- `src/primo_mcp_server/exporters.py` -- BibTeX, RIS, CSV export
+- `src/purduelibrary_mcp_server/server.py` -- MCP tool definitions and lifespan
+- `src/purduelibrary_mcp_server/client.py` -- Primo API HTTP client
+- `src/purduelibrary_mcp_server/models.py` -- Pydantic models for PNX response normalisation
+- `src/purduelibrary_mcp_server/formatter.py` -- Compact text output for LLM context
+- `src/purduelibrary_mcp_server/citations.py` -- Citation formatting (APA7, Harvard, Chicago, IEEE, Vancouver)
+- `src/purduelibrary_mcp_server/exporters.py` -- BibTeX, RIS, CSV export
 
 ## Running Tests
 

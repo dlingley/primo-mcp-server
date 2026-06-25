@@ -6,7 +6,7 @@ import io
 import csv
 import re
 
-from primo_mcp_server.models import PrimoRecord
+from purduelibrary_mcp_server.models import PrimoRecord
 
 
 def _record_type_key(resource_type: str) -> str:

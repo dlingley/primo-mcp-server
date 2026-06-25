@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
-from primo_mcp_server.models import PrimoRecord, SearchResponse
-from primo_mcp_server.query import (
+from purduelibrary_mcp_server.models import PrimoRecord, SearchResponse
+from purduelibrary_mcp_server.query import (
     date_range_facet_value,
     normalise_resource_type,
     normalise_scope,
@@ -15,7 +15,7 @@ from primo_mcp_server.query import (
 )
 
 if TYPE_CHECKING:
-    from primo_mcp_server.config import PrimoConfig
+    from purduelibrary_mcp_server.config import PrimoConfig
 
 
 _PRIMO_API_SUFFIX = "/primaws/rest/pub"

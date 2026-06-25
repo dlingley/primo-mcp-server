@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from primo_mcp_server.config import PrimoConfig
+from purduelibrary_mcp_server.config import PrimoConfig
 
 
 def test_default_config_is_purdue(monkeypatch):

@@ -1,6 +1,6 @@
 """Tests for Primo PNX model parsing."""
 
-from primo_mcp_server.models import PrimoRecord, SearchResponse
+from purduelibrary_mcp_server.models import PrimoRecord, SearchResponse
 
 
 class TestSearchResponse:

@@ -2,8 +2,8 @@
 
 from urllib.parse import parse_qs, urlparse
 
-from primo_mcp_server.config import PrimoConfig
-from primo_mcp_server.formatter import (
+from purduelibrary_mcp_server.config import PrimoConfig
+from purduelibrary_mcp_server.formatter import (
     _format_availability,
     build_record_url,
     build_search_url,
@@ -12,7 +12,7 @@ from primo_mcp_server.formatter import (
     format_suggestions,
     record_link,
 )
-from primo_mcp_server.models import PrimoRecord, SearchResponse
+from purduelibrary_mcp_server.models import PrimoRecord, SearchResponse
 
 
 def _purdue_config(**overrides) -> PrimoConfig:

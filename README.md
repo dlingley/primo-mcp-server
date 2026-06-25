@@ -22,8 +22,8 @@ and Unicode-safe handling for Chinese records.
 Clone and install the fork:
 
 ```bash
-git clone https://github.com/aarontaycheehsien/primo-mcp-server.git
-cd primo-mcp-server
+git clone https://github.com/aarontaycheehsien/purduelibrary-mcp-server.git
+cd purduelibrary-mcp-server
 pip install -e .
 ```
 
@@ -34,7 +34,7 @@ Register it in Claude Code by adding this to `~/.claude/settings.json`:
   "mcpServers": {
     "primo": {
       "command": "python",
-      "args": ["-m", "primo_mcp_server"]
+      "args": ["-m", "purduelibrary_mcp_server"]
     }
   }
 }

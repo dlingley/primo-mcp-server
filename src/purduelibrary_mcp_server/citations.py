@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 
-from primo_mcp_server.models import PrimoRecord
+from purduelibrary_mcp_server.models import PrimoRecord
 
 
 _CJK_RE = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]")

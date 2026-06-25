@@ -3,8 +3,8 @@ import sys
 
 
 def main() -> None:
-    """Entry point for the primo-mcp-server command."""
-    from primo_mcp_server.server import mcp
+    """Entry point for the purduelibrary-mcp-server command."""
+    from purduelibrary_mcp_server.server import mcp
 
     transport = os.getenv("MCP_TRANSPORT", "stdio")
     if len(sys.argv) > 1 and sys.argv[1] in ("sse", "stdio"):

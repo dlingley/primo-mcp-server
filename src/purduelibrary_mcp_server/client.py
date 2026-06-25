@@ -10,9 +10,9 @@ from urllib.parse import quote
 
 import httpx
 
-from primo_mcp_server.config import PrimoConfig
-from primo_mcp_server.models import PrimoRecord, SearchResponse
-from primo_mcp_server.query import (
+from purduelibrary_mcp_server.config import PrimoConfig
+from purduelibrary_mcp_server.models import PrimoRecord, SearchResponse
+from purduelibrary_mcp_server.query import (
     date_range_facet_value,
     normalise_resource_type,
     normalise_scope,

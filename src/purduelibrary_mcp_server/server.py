@@ -8,26 +8,37 @@ from typing import AsyncIterator
 import httpx
 from mcp.server.fastmcp import Context, FastMCP
 
-from primo_mcp_server.client import PrimoAPIError, PrimoClient
-from primo_mcp_server.config import PrimoConfig
-from primo_mcp_server.formatter import (
+from purduelibrary_mcp_server.client import PrimoAPIError, PrimoClient
+from purduelibrary_mcp_server.config import PrimoConfig, SpringshareConfig
+from purduelibrary_mcp_server.formatter import (
     format_record_detail,
     format_search_results,
     format_suggestions,
 )
+from purduelibrary_mcp_server.springshare import SpringshareAPIError, SpringshareClient
 
 
 @asynccontextmanager
 async def app_lifespan(server: FastMCP) -> AsyncIterator[dict]:
-    """Create a shared httpx client for the server lifetime."""
+    """Create shared httpx clients for the server lifetime."""
     config = PrimoConfig()
+    ss_config = SpringshareConfig()
     async with httpx.AsyncClient(
         base_url=config.base_url,
         timeout=config.request_timeout,
         headers={"User-Agent": config.user_agent},
-    ) as http_client:
+    ) as http_client, httpx.AsyncClient(
+        timeout=ss_config.request_timeout,
+        headers={"User-Agent": ss_config.user_agent},
+    ) as ss_http_client:
         client = PrimoClient(http_client, config)
-        yield {"client": client, "config": config}
+        ss_client = SpringshareClient(ss_http_client, ss_config)
+        yield {
+            "client": client,
+            "config": config,
+            "ss_client": ss_client,
+            "ss_config": ss_config,
+        }
 
 
 mcp = FastMCP(
@@ -62,6 +73,16 @@ def _get_client(ctx: Context) -> PrimoClient:
 def _get_config(ctx: Context) -> PrimoConfig:
     """Extract the PrimoConfig from the lifespan context."""
     return ctx.request_context.lifespan_context["config"]
+
+
+def _get_ss_client(ctx: Context) -> SpringshareClient:
+    """Extract the SpringshareClient from the lifespan context."""
+    return ctx.request_context.lifespan_context["ss_client"]
+
+
+def _get_ss_config(ctx: Context) -> SpringshareConfig:
+    """Extract the SpringshareConfig from the lifespan context."""
+    return ctx.request_context.lifespan_context["ss_config"]
 
 
 # ---------------------------------------------------------------------------
@@ -240,7 +261,7 @@ async def primo_cite(
         Formatted citations. Note: always verify generated citations before submission.
     """
     try:
-        from primo_mcp_server.citations import format_citation
+        from purduelibrary_mcp_server.citations import format_citation
 
         valid_styles = {"apa7", "harvard", "chicago", "ieee", "vancouver"}
         style = style.strip().lower()
@@ -286,7 +307,7 @@ async def primo_export(
         Formatted export data ready for import into reference managers (Zotero, Mendeley, EndNote).
     """
     try:
-        from primo_mcp_server.exporters import export_bibtex, export_csv, export_ris
+        from purduelibrary_mcp_server.exporters import export_bibtex, export_csv, export_ris
 
         valid_formats = {"bibtex", "ris", "csv"}
         format = format.strip().lower()
@@ -307,5 +328,58 @@ async def primo_export(
             return export_csv(records)
     except PrimoAPIError as e:
         return f"Error fetching records for export: {e}"
+    except Exception as e:
+        return f"Unexpected error: {e}"
+
+
+# ---------------------------------------------------------------------------
+# Tool 6: springshare_search_databases
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def springshare_search_databases(ctx: Context, query: str) -> str:
+    """Search curated Purdue University A-Z databases via LibGuides v1.2 API.
+
+    Use this tool to find specific curated databases subscribed to by Purdue
+    Libraries (e.g. "JSTOR", "Business Source Complete", "LISTA").
+
+    Args:
+        query: Search term for databases (e.g. "statistics", "business").
+
+    Returns:
+        Formatted list of matching databases with descriptions and links.
+    """
+    try:
+        client = _get_ss_client(ctx)
+        matches = await client.search_databases(query)
+        if not matches:
+            return f'No databases found matching "{query}" in the curated A-Z list.'
+
+        lines = [f'Found {len(matches)} curated databases for "{query}":', ""]
+        for db in matches:
+            name = db.get("name", "")
+            url = db.get("url", "")
+            description = db.get("description", "")
+            vendor = db.get("az_vendor_name", "")
+            
+            # Format title as link
+            title_line = f"### [{name}]({url})" if url else f"### {name}"
+            if vendor:
+                title_line += f" (Provider: {vendor})"
+            lines.append(title_line)
+            
+            if description:
+                lines.append(description)
+                
+            # Subjects
+            subjects = db.get("subjects", []) or []
+            subject_names = [sub.get("name", "") for sub in subjects if sub]
+            if subject_names:
+                lines.append(f"*Subjects: {'; '.join(subject_names)}*")
+            lines.append("") # Empty separator
+            
+        return "\n".join(lines).strip()
+    except SpringshareAPIError as e:
+        return f"Error searching Springshare: {e}"
     except Exception as e:
         return f"Unexpected error: {e}"

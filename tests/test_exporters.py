@@ -1,7 +1,7 @@
 """Tests for export formats."""
 
-from primo_mcp_server.exporters import export_bibtex, export_csv, export_ris
-from primo_mcp_server.models import PrimoRecord, SearchResponse
+from purduelibrary_mcp_server.exporters import export_bibtex, export_csv, export_ris
+from purduelibrary_mcp_server.models import PrimoRecord, SearchResponse
 
 
 class TestBibTeX:

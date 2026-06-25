@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "primo-mcp-server"
+name = "purduelibrary-mcp-server"
 version = "0.1.0"
 description = "Purdue-focused MCP server for searching Purdue University Libraries Primo catalogue, articles, databases, and records."
 readme = "README.md"
@@ -23,10 +23,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/aarontaycheehsien/primo-mcp-server"
-Repository = "https://github.com/aarontaycheehsien/primo-mcp-server"
-Issues = "https://github.com/aarontaycheehsien/primo-mcp-server/issues"
-Original = "https://github.com/geheharidas/primo-mcp-server"
+Homepage = "https://github.com/aarontaycheehsien/purduelibrary-mcp-server"
+Repository = "https://github.com/aarontaycheehsien/purduelibrary-mcp-server"
+Issues = "https://github.com/aarontaycheehsien/purduelibrary-mcp-server/issues"
+Original = "https://github.com/geheharidas/purduelibrary-mcp-server"
 
 [project.optional-dependencies]
 dev = [
@@ -36,10 +36,10 @@ dev = [
 ]
 
 [project.scripts]
-primo-mcp-server = "primo_mcp_server:main"
+purduelibrary-mcp-server = "purduelibrary_mcp_server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/primo_mcp_server"]
+packages = ["src/purduelibrary_mcp_server"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

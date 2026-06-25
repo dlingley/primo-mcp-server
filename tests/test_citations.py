@@ -1,7 +1,7 @@
 """Tests for citation formatting."""
 
-from primo_mcp_server.citations import format_citation
-from primo_mcp_server.models import PrimoRecord, SearchResponse
+from purduelibrary_mcp_server.citations import format_citation
+from purduelibrary_mcp_server.models import PrimoRecord, SearchResponse
 
 
 class TestCitations:

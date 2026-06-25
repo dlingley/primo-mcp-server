@@ -2,9 +2,9 @@
 
 from types import SimpleNamespace
 
-from primo_mcp_server.config import PrimoConfig
-from primo_mcp_server.models import PrimoRecord, SearchResponse
-from primo_mcp_server.server import primo_cite, primo_export, primo_get_record, primo_search
+from purduelibrary_mcp_server.config import PrimoConfig
+from purduelibrary_mcp_server.models import PrimoRecord, SearchResponse
+from purduelibrary_mcp_server.server import primo_cite, primo_export, primo_get_record, primo_search
 
 
 class _FakeClient:

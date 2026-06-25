@@ -5,8 +5,8 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from primo_mcp_server.client import PrimoAPIError, PrimoClient, _normalise_scope
-from primo_mcp_server.config import PrimoConfig
+from purduelibrary_mcp_server.client import PrimoAPIError, PrimoClient, _normalise_scope
+from purduelibrary_mcp_server.config import PrimoConfig
 
 
 def _config() -> PrimoConfig:
