@@ -154,6 +154,7 @@ def build_search_url(
     date_to: str | None = None,
     peer_reviewed: bool | None = None,
     include_unavailable: bool | None = None,
+    online: bool | None = None,
 ) -> str | None:
     """Build a direct Primo UI search URL for the search response."""
     if config is None or not config.vid:
@@ -192,6 +193,8 @@ def build_search_url(
         params.append(("facet", f"searchcreationdate,include,{date_range}"))
     if peer_reviewed:
         params.append(("facet", "tlevel,include,peer_reviewed"))
+    if online:
+        params.append(("facet", "tlevel,include,online_resources"))
 
     return f"{app_base}/search?{urlencode(params)}"
 
@@ -236,6 +239,7 @@ def format_search_results(
     date_to: str | None = None,
     peer_reviewed: bool | None = None,
     include_unavailable: bool | None = None,
+    online: bool | None = None,
 ) -> str:
     """Format search results as a compact numbered list.
 
@@ -253,6 +257,7 @@ def format_search_results(
         date_to=date_to,
         peer_reviewed=peer_reviewed,
         include_unavailable=include_unavailable,
+        online=online,
     )
     try:
         query_field = normalise_search_field(field)

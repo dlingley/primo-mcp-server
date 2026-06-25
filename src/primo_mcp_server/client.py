@@ -164,6 +164,7 @@ class PrimoClient:
         date_to: str | None = None,
         peer_reviewed: bool | None = None,
         include_unavailable: bool | None = None,
+        online: bool | None = None,
     ) -> SearchResponse:
         """Search the Primo catalogue.
 
@@ -182,6 +183,7 @@ class PrimoClient:
             include_unavailable: Include CDI records the institution has no
                 full text access to (Primo's pcAvailability "expanded"
                 search). None uses the configured default.
+            online: Filter to online resources only.
 
         Returns:
             SearchResponse with parsed records and pagination info.
@@ -230,6 +232,8 @@ class PrimoClient:
             q_include.append(f"facet_searchcreationdate,exact,{date_range}")
         if peer_reviewed:
             q_include.append("facet_tlevel,exact,peer_reviewed")
+        if online:
+            q_include.append("facet_tlevel,exact,online_resources")
 
         # Add all qInclude params
         if q_include:

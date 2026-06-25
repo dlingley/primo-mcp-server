@@ -21,6 +21,7 @@ def _smu_config(**overrides) -> PrimoConfig:
         "discovery_base_url": None,
         "vid": "65SMU_INST:SMU_NUI",
         "language": "en",
+        "_env_file": None,
     }
     values.update(overrides)
     return PrimoConfig(**values)

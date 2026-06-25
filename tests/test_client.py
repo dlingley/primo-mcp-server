@@ -19,6 +19,7 @@ def _config() -> PrimoConfig:
         scope_local="MyInstitution",
         scope_combined="MyInst_and_CI",
         scope_books_videos="BooksVideos",
+        _env_file=None,
     )
 
 

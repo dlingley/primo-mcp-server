@@ -20,7 +20,7 @@ def test_default_config_is_smu(monkeypatch):
     ):
         monkeypatch.delenv(key, raising=False)
 
-    config = PrimoConfig()
+    config = PrimoConfig(_env_file=None)
 
     assert config.base_url == "https://search.library.smu.edu.sg/primaws/rest/pub"
     assert config.discovery_base_url is None

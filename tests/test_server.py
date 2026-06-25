@@ -45,7 +45,10 @@ class _FakeClient:
 def _fake_context() -> SimpleNamespace:
     lifespan_context = {
         "client": _FakeClient(),
-        "config": PrimoConfig(base_url="https://example.test/primaws/rest/pub"),
+        "config": PrimoConfig(
+            base_url="https://example.test/primaws/rest/pub",
+            _env_file=None,
+        ),
     }
     return SimpleNamespace(
         request_context=SimpleNamespace(lifespan_context=lifespan_context)

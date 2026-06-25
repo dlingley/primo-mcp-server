@@ -82,6 +82,7 @@ async def primo_search(
     date_to: str | None = None,
     peer_reviewed: bool | None = None,
     include_unavailable: bool | None = None,
+    online: bool | None = None,
 ) -> str:
     """Search Singapore Management University Library via Primo.
 
@@ -115,6 +116,7 @@ async def primo_search(
             confirmation requires. Only set true when the user explicitly
             wants to discover material beyond the library's collection,
             e.g. for interlibrary loan or comprehensive literature mapping.
+        online: Set to true to show only online resources.
 
     Returns:
         Formatted search results with title, authors, year, identifiers, and availability.
@@ -134,6 +136,7 @@ async def primo_search(
             date_to=date_to,
             peer_reviewed=peer_reviewed,
             include_unavailable=include_unavailable,
+            online=online,
         )
         return format_search_results(
             response,
@@ -148,6 +151,7 @@ async def primo_search(
             date_to=date_to,
             peer_reviewed=peer_reviewed,
             include_unavailable=include_unavailable,
+            online=online,
         )
     except PrimoAPIError as e:
         return f"Error searching Primo: {e}"

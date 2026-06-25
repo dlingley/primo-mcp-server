@@ -1,10 +1,19 @@
-"""SMU Primo MCP Server -- search Singapore Management University Library."""
-
-__version__ = "0.1.0"
+import os
+import sys
 
 
 def main() -> None:
     """Entry point for the primo-mcp-server command."""
     from primo_mcp_server.server import mcp
 
-    mcp.run(transport="stdio")
+    transport = os.getenv("MCP_TRANSPORT", "stdio")
+    if len(sys.argv) > 1 and sys.argv[1] in ("sse", "stdio"):
+        transport = sys.argv[1]
+
+    if transport == "sse":
+        host = os.getenv("MCP_HOST", "0.0.0.0")
+        port = int(os.getenv("MCP_PORT", "8000"))
+        print(f"Starting MCP server on sse transport at http://{host}:{port}")
+        mcp.run(transport="sse", host=host, port=port)
+    else:
+        mcp.run(transport="stdio")
