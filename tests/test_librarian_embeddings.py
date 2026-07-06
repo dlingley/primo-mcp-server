@@ -1006,10 +1006,17 @@ async def test_genai_studio_embed_posts_ollama_shape_with_bearer_key(tmp_path):
     from purduelibrary_mcp_server.librarian_embeddings import _genai_studio_embed
 
     route = respx.post(
-        "https://genai.rcac.purdue.edu/ollama/api/embed"
+        "https://genai.rcac.purdue.edu/api/embeddings"
     ).mock(
         return_value=httpx.Response(
-            200, json={"embeddings": [[0.1, 0.2], [0.4, 0.5]]}
+            200,
+            json={
+                "data": [
+                    # Deliberately out of order: index is authoritative.
+                    {"index": 1, "embedding": [0.4, 0.5]},
+                    {"index": 0, "embedding": [0.1, 0.2]},
+                ]
+            },
         )
     )
 
@@ -1028,11 +1035,9 @@ async def test_genai_studio_embed_posts_ollama_shape_with_bearer_key(tmp_path):
     request = route.calls.last.request
     assert request.headers["authorization"] == "Bearer genai-key"
     body = json.loads(request.content)
-    assert body["model"] == "nomic-embed-text:latest"
-    assert body["input"] == [
-        "search_document: hello",
-        "search_document: world",
-    ]
+    assert body["model"] == "llama3.2:latest"
+    # Chat models have no retrieval prompts; the default prefixes are empty.
+    assert body["input"] == ["hello", "world"]
 
 
 @respx.mock
@@ -1040,13 +1045,19 @@ async def test_genai_studio_embed_applies_query_prefix(tmp_path):
     from purduelibrary_mcp_server.librarian_embeddings import _genai_studio_embed
 
     route = respx.post(
-        "https://genai.rcac.purdue.edu/ollama/api/embed"
-    ).mock(return_value=httpx.Response(200, json={"embeddings": [[0.1]]}))
+        "https://genai.rcac.purdue.edu/api/embeddings"
+    ).mock(
+        return_value=httpx.Response(
+            200, json={"data": [{"index": 0, "embedding": [0.1]}]}
+        )
+    )
 
     await _genai_studio_embed(
         ["digital preservation"],
         "RETRIEVAL_QUERY",
-        config=_genai_config(tmp_path),
+        config=_genai_config(
+            tmp_path, embedding_genai_query_prefix="search_query: "
+        ),
     )
 
     body = json.loads(route.calls.last.request.content)
@@ -1069,13 +1080,18 @@ async def test_genai_studio_requires_api_key(tmp_path):
 async def test_semantic_fallback_runs_on_genai_studio_provider(tmp_path):
     def respond(request):
         texts = json.loads(request.content)["input"]
-        embeddings = [
-            [1.0, 0.0] if "preservation" in text.lower() else [0.0, 1.0]
-            for text in texts
+        data = [
+            {
+                "index": i,
+                "embedding": (
+                    [1.0, 0.0] if "preservation" in text.lower() else [0.0, 1.0]
+                ),
+            }
+            for i, text in enumerate(texts)
         ]
-        return httpx.Response(200, json={"embeddings": embeddings})
+        return httpx.Response(200, json={"data": data})
 
-    respx.post("https://genai.rcac.purdue.edu/ollama/api/embed").mock(
+    respx.post("https://genai.rcac.purdue.edu/api/embeddings").mock(
         side_effect=respond
     )
 

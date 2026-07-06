@@ -290,11 +290,20 @@ PRIMO_EMBEDDING_GENAI_API_KEY=your-genai-studio-key
 # PRIMO_EMBEDDING_GENAI_MODEL=nomic-embed-text:latest
 ```
 
-The same caveats as the local provider apply: the cosine floor was tuned for
-`gemini-embedding-001`, so run `calibrate_embeddings` after switching models,
-and adjust the query/document prefixes when the model is not nomic-embed-text.
-If the proxy route returns 404, the instance's Ollama passthrough is not
-enabled for your account -- fall back to `local` with Ollama, or ask RCAC.
+**Verified against the live service (July 2026):** the endpoint works, but
+GenAI Studio currently hosts no dedicated embedding model -- only chat
+models, embedded through Ollama's mean-pooling path (`llama3.2:latest`,
+`llama3.1`, `llama3.3:70b`, `phi4`, `codellama`, `llava`, and
+`deepseek-r1:1.5b` return vectors; `gemma3`, `qwen3`, and `gpt-oss` return
+500). Chat-model embeddings proved unusable for librarian routing in
+calibration (the correct librarian never ranked first on test queries;
+similarities cluster in a narrow band), so **leave
+`PRIMO_LIBRARIAN_SEMANTIC_FALLBACK=false` with this provider for now**. The
+keyword matcher carries the feature well on its own. If RCAC adds a real
+embedding model (e.g. `nomic-embed-text`), set `PRIMO_EMBEDDING_GENAI_MODEL`
+to it, run `calibrate_embeddings` to set the floor, and enable the fallback.
+The Ollama passthrough (`/ollama/api/embed`) is disabled on the instance;
+this provider uses Open WebUI's own `POST /api/embeddings` route instead.
 
 The layer fails closed — only configured profiles are ever returned, and any
 embedding error degrades to the keyword outcome — but not silently: errors are

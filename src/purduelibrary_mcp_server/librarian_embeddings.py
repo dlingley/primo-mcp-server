@@ -366,21 +366,22 @@ async def _genai_studio_embed(
     config: PrimoConfig,
     timeout: float | None = None,
 ) -> list[list[float]]:
-    """Embed ``texts`` via Purdue GenAI Studio's Ollama proxy.
+    """Embed ``texts`` via Purdue GenAI Studio's embeddings endpoint.
 
-    GenAI Studio (https://genai.rcac.purdue.edu) is an Open WebUI instance;
-    Open WebUI exposes embedding generation only through its transparent
-    Ollama passthrough (POST /ollama/api/embed), not an OpenAI-style
-    /v1/embeddings route. The native Ollama embed API takes a batched
-    ``input`` list and returns ``embeddings`` in input order. A GenAI
-    Studio API key is always required (the instance is authenticated);
-    like the local provider, the configured query/document prefixes stand
-    in for a taskType parameter.
+    GenAI Studio (https://genai.rcac.purdue.edu) is an Open WebUI instance.
+    Its Ollama passthrough is disabled there (503), but Open WebUI's own
+    OpenAI-compatible route (POST /api/embeddings) is live and embeds with
+    any hosted Ollama model -- the instance offers no dedicated embedding
+    model, so the default is a small chat model embedded through Ollama's
+    native mean-pooling path. A GenAI Studio API key is always required
+    (the instance is authenticated); like the local provider, the
+    configured query/document prefixes stand in for a taskType parameter
+    (empty by default, since chat models have no retrieval prompts).
     """
     if not config.embedding_genai_api_key:
         raise RuntimeError("embedding_genai_api_key is not configured")
     base = config.embedding_genai_url.rstrip("/")
-    url = f"{base}/ollama/api/embed"
+    url = f"{base}/api/embeddings"
     prefix = (
         config.embedding_genai_query_prefix
         if task_type == _TASK_QUERY
@@ -403,7 +404,10 @@ async def _genai_studio_embed(
                 },
             )
             response.raise_for_status()
-            vectors.extend(response.json()["embeddings"])
+            data = response.json()["data"]
+            # The spec allows out-of-order items; index is authoritative.
+            data = sorted(data, key=lambda item: item.get("index", 0))
+            vectors.extend(item["embedding"] for item in data)
     return vectors
 
 

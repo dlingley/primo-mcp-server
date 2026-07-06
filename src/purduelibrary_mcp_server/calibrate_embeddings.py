@@ -32,14 +32,25 @@ async def _run(queries: list[str]) -> int:
     if message or directory is None:
         print(message, file=sys.stderr)
         return 1
-    if not config.embedding_api_key:
+    provider = config.embedding_provider.strip().lower().replace("-", "_")
+    if provider == "gemini" and not config.embedding_api_key:
         print("PRIMO_EMBEDDING_API_KEY is not configured.", file=sys.stderr)
         return 1
+    if provider == "genai_studio" and not config.embedding_genai_api_key:
+        print("PRIMO_EMBEDDING_GENAI_API_KEY is not configured.", file=sys.stderr)
+        return 1
 
+    if provider == "local":
+        model = config.embedding_local_model
+    elif provider == "genai_studio":
+        model = config.embedding_genai_model
+    else:
+        model = config.embedding_model
     print(
         f"Directory: {config.librarians_file} "
         f"({len(directory.librarians)} profiles)\n"
-        f"Model: {config.embedding_model}"
+        f"Provider: {provider}\n"
+        f"Model: {model}"
         + (
             f" @ {config.embedding_dimensions} dims"
             if config.embedding_dimensions
