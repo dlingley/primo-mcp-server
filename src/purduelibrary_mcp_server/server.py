@@ -21,7 +21,11 @@ from purduelibrary_mcp_server.formatter import (
 )
 from purduelibrary_mcp_server.policy import PRIMO_SEARCH_DESCRIPTION, SERVER_INSTRUCTIONS
 from purduelibrary_mcp_server.query import QueryClause
-from purduelibrary_mcp_server.springshare import SpringshareAPIError, SpringshareClient
+from purduelibrary_mcp_server.springshare import (
+    SpringshareAPIError,
+    SpringshareClient,
+    strip_html,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -319,15 +323,26 @@ async def springshare_search_databases(ctx: Context, query: str) -> str:
         Formatted list of matching databases with descriptions and links.
     """
     client = _get_ss_client(ctx)
+    ss_config = _get_ss_config(ctx)
     matches = await client.search_databases(query)
     if not matches:
         return f'No databases found matching "{query}" in the curated A-Z list.'
 
-    lines = [f'Found {len(matches)} curated databases for "{query}":', ""]
-    for db in matches:
+    total = len(matches)
+    shown = matches[: max(1, ss_config.max_search_results)]
+    if len(shown) < total:
+        header = (
+            f'Found {total} curated databases for "{query}" '
+            f"(showing the top {len(shown)}; refine the query for more "
+            "specific matches):"
+        )
+    else:
+        header = f'Found {total} curated databases for "{query}":'
+    lines = [header, ""]
+    for db in shown:
         name = db.get("name", "")
         url = db.get("url", "")
-        description = db.get("description", "")
+        description = strip_html(db.get("description", ""))
         vendor = db.get("az_vendor_name", "")
         db_id = db.get("id")
 

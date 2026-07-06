@@ -84,4 +84,10 @@ class SpringshareConfig(BaseSettings):
     client_secret: str | None = None
     request_timeout: float = 30.0
     user_agent: str = f"purduelibrary-mcp-server/{_PACKAGE_VERSION}"
+    # The curated A-Z database list changes rarely; cache it in memory for
+    # this many seconds so each search does not re-download the whole list.
+    az_cache_ttl: float = 900.0
+    # Broad queries can substring-match a large share of the A-Z list; cap
+    # the formatted output to the best matches to keep tool output readable.
+    max_search_results: int = 15
 
