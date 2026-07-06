@@ -8,17 +8,35 @@ from purduelibrary_mcp_server.server import primo_cite, primo_export, primo_get_
 
 
 class _FakeClient:
+    def __init__(
+        self,
+        records: list[PrimoRecord] | None = None,
+        records_by_query: dict[str, list[PrimoRecord]] | None = None,
+    ):
+        self.records = (
+            records
+            if records is not None
+            else [
+                PrimoRecord(
+                    record_id="alma123",
+                    title="Executive Compensation Data",
+                    resource_type="database",
+                    subjects=["Accounting", "Executive compensation"],
+                    keywords=["Corporate governance"],
+                )
+            ]
+        )
+        self.records_by_query = records_by_query or {}
+        self.search_calls: list[dict] = []
+
     async def search(self, **kwargs) -> SearchResponse:
+        self.search_calls.append(kwargs)
+        query = kwargs.get("query", "")
+        records = self.records_by_query.get(query, self.records)
         return SearchResponse.model_validate(
             {
-                "info": {"total": 1},
-                "records": [
-                    PrimoRecord(
-                        record_id="alma123",
-                        title="Executive Compensation Data",
-                        resource_type="database",
-                    )
-                ],
+                "info": {"total": len(records)},
+                "records": records,
             }
         )
 
@@ -42,9 +60,9 @@ class _FakeClient:
         ]
 
 
-def _fake_context() -> SimpleNamespace:
+def _fake_context(client: _FakeClient | None = None) -> SimpleNamespace:
     lifespan_context = {
-        "client": _FakeClient(),
+        "client": client if client is not None else _FakeClient(),
         "config": PrimoConfig(
             base_url="https://example.test/primaws/rest/pub",
             _env_file=None,
@@ -68,6 +86,35 @@ async def test_primo_search_smoke_does_not_return_unexpected_error():
     assert "- Results found: [any,contains,ceo compensation](" in output
     assert "pcAvailability=true" in output
     assert "Executive Compensation Data" in output
+
+
+async def test_primo_search_zero_results_guides_llm_iteration():
+    client = _FakeClient(records=[])
+
+    output = await primo_search(
+        _fake_context(client=client),
+        "autism",
+        resource_type="databases",
+    )
+
+    assert [call["query"] for call in client.search_calls] == ["autism"]
+    assert 'No results found for "autism".' in output
+    assert "Iterative search guidance:" in output
+    assert "Try up to five total attempts" in output
+    assert "start retries with catalogue databases" in output
+    assert 'resource_type="databases"' in output
+    assert "direct searches for likely database names" in output
+    assert "OR queries for close alternatives" in output
+    assert "combine all relevant results found across attempts" in output
+
+
+def test_primo_search_docstring_documents_dataset_database_first_policy():
+    doc = primo_search.__doc__ or ""
+
+    assert "For dataset or data-source requests" in doc
+    assert 'scope="catalogue"' in doc
+    assert 'resource_type="databases"' in doc
+    assert "to articles or books" in doc
 
 
 async def test_primo_get_record_smoke_does_not_return_unexpected_error():
