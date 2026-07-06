@@ -1,0 +1,419 @@
+{
+  "librarians": [
+    {
+      "id": "baker641",
+      "name": "Neal Baker",
+      "email": "baker641@purdue.edu",
+      "url": "https://lib.purdue.edu/people/baker641",
+      "subjects": [
+        "Business",
+        "Business Analytics and Information Management",
+        "Entrepreneurship",
+        "Finance",
+        "Management",
+        "Marketing",
+        "Quantitative Business Economics",
+        "Real Estate"
+      ],
+      "notes": "Phone: (765) 494-9628"
+    },
+    {
+      "id": "ahbochen",
+      "name": "Annette Bochenek",
+      "email": "ahbochen@purdue.edu",
+      "url": "https://lib.purdue.edu/people/ahbochen",
+      "subjects": [
+        "Agricultural Economics",
+        "Business",
+        "Economics",
+        "Entrepreneurship",
+        "Human Resource Management",
+        "Management",
+        "Organizational Leadership and Supervision"
+      ],
+      "notes": "Phone: (765) 496-5230"
+    },
+    {
+      "id": "pnbradsh",
+      "name": "Paige Bradshaw",
+      "email": "pnbradsh@purdue.edu",
+      "url": "https://lib.purdue.edu/people/pnbradsh",
+      "subjects": [
+        "Human Development & Family Studies",
+        "Veterinary Medicine"
+      ],
+      "notes": "Phone: (765) 496-1621"
+    },
+    {
+      "id": "caic",
+      "name": "Chao Cai",
+      "email": "caic@purdue.edu",
+      "url": "https://lib.purdue.edu/people/caic",
+      "subjects": [
+        "Agricultural Education",
+        "Agricultural Extension",
+        "Agricultural Sciences Education & Communication",
+        "Agriculture",
+        "Agriculture & Biological Engineering",
+        "Agronomy",
+        "Biological Sciences",
+        "Botany & Plant Pathology",
+        "Entomology",
+        "Food Science",
+        "Forestry & Natural Resources",
+        "Horticulture & Landscape Architecture",
+        "Plant Sciences"
+      ],
+      "notes": "Phone: (765) 494-8684"
+    },
+    {
+      "id": "chapmanb",
+      "name": "Bert Chapman",
+      "email": "chapmanb@purdue.edu",
+      "url": "https://lib.purdue.edu/people/chapmanb",
+      "subjects": [
+        "Asian Studies",
+        "Government Information",
+        "Homeland Security",
+        "Law",
+        "Military Science",
+        "Political Science"
+      ],
+      "notes": "Phone: (765) 494-2837"
+    },
+    {
+      "id": "mchomint",
+      "name": "Melissa Chomintra",
+      "email": "mchomint@purdue.edu",
+      "url": "https://lib.purdue.edu/people/mchomint",
+      "subjects": [
+        "Anthropology",
+        "Critical Disability Studies",
+        "Data Services",
+        "Digital Humanities",
+        "Sociology",
+        "Women's, Gender, & Sexuality Studies",
+        "Geographic Information Systems (GIS)"
+      ],
+      "keywords": [
+        "GIS"
+      ],
+      "notes": "Phone: (765) 496-0931"
+    },
+    {
+      "id": "fosmire",
+      "name": "Michael Fosmire",
+      "email": "fosmire@purdue.edu",
+      "url": "https://lib.purdue.edu/people/fosmire",
+      "subjects": [
+        "Physics"
+      ],
+      "notes": "Phone: (765) 494-2859"
+    },
+    {
+      "id": "ugaha",
+      "name": "Ula Gaha",
+      "email": "ugaha@purdue.edu",
+      "url": "https://lib.purdue.edu/people/ugaha",
+      "subjects": [
+        "African-American Studies"
+      ],
+      "notes": "Phone: (765) 494-3093"
+    },
+    {
+      "id": "tgerrish",
+      "name": "Thomas Edward Gerrish",
+      "email": "tgerrish@purdue.edu",
+      "url": "https://lib.purdue.edu/people/tgerrish",
+      "subjects": [
+        "Civil Engineering",
+        "Construction Engineering and Management",
+        "Earth and Atmospheric Sciences",
+        "Environmental Engineering",
+        "Mechanical Engineering",
+        "Music"
+      ],
+      "notes": "Phone: (765) 496-9620"
+    },
+    {
+      "id": "aharmey",
+      "name": "Adriana M Harmeyer",
+      "email": "aharmey@purdue.edu",
+      "url": "https://lib.purdue.edu/people/aharmey",
+      "subjects": [
+        "History"
+      ],
+      "notes": "Phone: (765) 494-2263"
+    },
+    {
+      "id": "hayes261",
+      "name": "Andrea M Hayes",
+      "email": "hayes261@purdue.edu",
+      "url": "https://lib.purdue.edu/people/hayes261",
+      "subjects": [
+        "Health Sciences (school)",
+        "Psychological Sciences",
+        "Public Health"
+      ],
+      "notes": "Phone: (765) 494-2871"
+    },
+    {
+      "id": "howar198",
+      "name": "Heather A Howard",
+      "email": "howar198@purdue.edu",
+      "url": "https://lib.purdue.edu/people/howar198",
+      "subjects": [
+        "Business",
+        "Career Research",
+        "Consumer Sciences",
+        "Hospitality & Tourism Management",
+        "Integrated Business and Engineering",
+        "Management"
+      ],
+      "notes": "Phone: (765) 494-8164"
+    },
+    {
+      "id": "huber47",
+      "name": "Sarah E Huber",
+      "email": "huber47@purdue.edu",
+      "url": "https://lib.purdue.edu/people/huber47",
+      "subjects": [
+        "Computer Graphics Technology",
+        "Computer and Information Technology"
+      ],
+      "notes": "Phone: (765) 494-9993"
+    },
+    {
+      "id": "jpvmh",
+      "name": "Jean-Pierre V M Hérubel",
+      "email": "jpvmh@purdue.edu",
+      "url": "https://lib.purdue.edu/people/jpvmh",
+      "subjects": [
+        "American Studies",
+        "Art and Design",
+        "Classical Studies",
+        "Culture of Science",
+        "Film Studies",
+        "Foreign Languages and Literature",
+        "Interdisciplinary Studies (Liberal Arts)",
+        "Languages & Culture",
+        "Latin American & Latino Studies",
+        "Library Science",
+        "Linguistics",
+        "Medieval Studies",
+        "Philosophy"
+      ],
+      "notes": "Phone: (765) 494-2832"
+    },
+    {
+      "id": "john1435",
+      "name": "Nastasha E Johnson",
+      "email": "john1435@purdue.edu",
+      "url": "https://lib.purdue.edu/people/john1435",
+      "subjects": [
+        "Mathematics"
+      ],
+      "notes": "Phone: (765) 494-4851"
+    },
+    {
+      "id": "kongn",
+      "name": "Nicole Kong",
+      "email": "kongn@purdue.edu",
+      "url": "https://lib.purdue.edu/people/kongn",
+      "subjects": [
+        "Geographic Information Systems (GIS)"
+      ],
+      "keywords": [
+        "GIS"
+      ],
+      "notes": "Phone: (765) 494-2902"
+    },
+    {
+      "id": "leamankb",
+      "name": "Kristin Browning Leaman",
+      "email": "leamankb@purdue.edu",
+      "url": "https://lib.purdue.edu/people/leamankb",
+      "subjects": [
+        "Classical Studies",
+        "Comparative Literature",
+        "Cornerstone",
+        "English",
+        "History",
+        "Languages & Culture",
+        "Medieval Studies",
+        "Theatre"
+      ],
+      "notes": "Phone: (765) 496-0907"
+    },
+    {
+      "id": "lu59",
+      "name": "Jing Lu",
+      "email": "lu59@purdue.edu",
+      "url": "https://lib.purdue.edu/people/lu59",
+      "subjects": [
+        "AI Literacy Specialist"
+      ],
+      "notes": "Phone: (765) 494-1352"
+    },
+    {
+      "id": "zmayhook",
+      "name": "Zoe Mayhook",
+      "email": "zmayhook@purdue.edu",
+      "url": "https://lib.purdue.edu/people/zmayhook",
+      "subjects": [
+        "Accounting",
+        "Business",
+        "Business Law",
+        "Business and Technology",
+        "Entrepreneurship",
+        "Management",
+        "Real Estate Finance",
+        "Supply Chain and Operations Management"
+      ],
+      "notes": "Phone: (765) 494-6243"
+    },
+    {
+      "id": "bmcgowa",
+      "name": "Bethany S McGowan",
+      "email": "bmcgowa@purdue.edu",
+      "url": "https://lib.purdue.edu/people/bmcgowa",
+      "subjects": [
+        "Nursing",
+        "Nutrition Science",
+        "Speech, Language, & Hearing Sciences"
+      ],
+      "notes": "Phone: (765) 494-2917"
+    },
+    {
+      "id": "iowuor",
+      "name": "Innocensia Owuor",
+      "email": "iowuor@purdue.edu",
+      "url": "https://lib.purdue.edu/people/iowuor",
+      "subjects": [
+        "Civil Engineering",
+        "Quantitative Methods",
+        "Statistics",
+        "Geographic Information Systems (GIS)"
+      ],
+      "keywords": [
+        "GIS"
+      ],
+      "notes": "Phone: (765) 494-2715"
+    },
+    {
+      "id": "ppascuzz",
+      "name": "Pete Pascuzzi",
+      "email": "ppascuzz@purdue.edu",
+      "url": "https://lib.purdue.edu/people/ppascuzz",
+      "subjects": [
+        "Biochemistry",
+        "Bioinformatics",
+        "Biological Sciences",
+        "Biomedical Engineering",
+        "Medicinal Chemistry",
+        "Molecular Biosciences",
+        "Molecular Pharmacology"
+      ],
+      "notes": "Phone: (765) 494-3620"
+    },
+    {
+      "id": "phill201",
+      "name": "Margaret Phillips",
+      "email": "phill201@purdue.edu",
+      "url": "https://lib.purdue.edu/people/phill201",
+      "subjects": [
+        "Engineering Technology",
+        "Industrial Engineering",
+        "Nuclear Engineering"
+      ],
+      "notes": "Phone: (765) 494-3649"
+    },
+    {
+      "id": "reed252",
+      "name": "Jason Reed",
+      "email": "reed252@purdue.edu",
+      "url": "https://lib.purdue.edu/people/reed252",
+      "subjects": [
+        "Health & Kinesiology",
+        "Pharmacy"
+      ],
+      "notes": "Phone: (765) 494-9813"
+    },
+    {
+      "id": "nrupp",
+      "name": "Nathan Rupp",
+      "email": "nrupp@purdue.edu",
+      "url": "https://lib.purdue.edu/people/nrupp",
+      "subjects": [
+        "Standards"
+      ],
+      "notes": "Phone: (765) 494-6477"
+    },
+    {
+      "id": "gshao",
+      "name": "Gang Shao",
+      "email": "gshao@purdue.edu",
+      "url": "https://lib.purdue.edu/people/gshao",
+      "subjects": [
+        "Agriculture & Biological Engineering",
+        "Forestry & Natural Resources",
+        "Statistics"
+      ],
+      "notes": "Phone: (765) 496-1794"
+    },
+    {
+      "id": "jtinio",
+      "name": "Jerilyn Pia Tinio",
+      "email": "jtinio@purdue.edu",
+      "url": "https://lib.purdue.edu/people/jtinio",
+      "subjects": [
+        "Asian American Studies",
+        "Communication",
+        "Education",
+        "Global Studies",
+        "Jewish Studies",
+        "Latin American & Latino Studies",
+        "Native American and Indigenous Studies",
+        "Philosophy",
+        "Religious Studies"
+      ],
+      "notes": "Phone: (765) 496-0904"
+    },
+    {
+      "id": "mwitt",
+      "name": "Michael C Witt",
+      "email": "mwitt@purdue.edu",
+      "url": "https://lib.purdue.edu/people/mwitt",
+      "subjects": [
+        "Computer Science"
+      ],
+      "notes": "Phone: (765) 494-8703"
+    },
+    {
+      "id": "liu31",
+      "name": "Wei Zakharov",
+      "email": "wzakharov@purdue.edu",
+      "url": "https://lib.purdue.edu/people/liu31",
+      "subjects": [
+        "Aero and Astro Engineering",
+        "Aviation Technology",
+        "Electrical & Computer Engineering",
+        "Engineering Education"
+      ],
+      "notes": "Phone: (765) 494-2872"
+    },
+    {
+      "id": "dzwicky",
+      "name": "Dave Zwicky",
+      "email": "dzwicky@purdue.edu",
+      "url": "https://lib.purdue.edu/people/dzwicky",
+      "subjects": [
+        "Chemical Engineering",
+        "Chemistry",
+        "Materials Engineering",
+        "Patents"
+      ],
+      "notes": "Phone: (765) 496-7279"
+    }
+  ]
+}

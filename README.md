@@ -340,8 +340,21 @@ returns the complete configured directory (name, title, contact, schools,
 best-for areas, and a sample of subjects) so a caller can still route the
 user to a real contact without inventing one.
 
-Librarian recommendations require an external JSON file. No real profiles are
-bundled. The minimum shape is:
+This fork bundles Purdue's subject-librarian directory at
+`data/purdue-librarians.json` (30 librarians, 136 subject mappings), generated
+from the public staff directory at
+<https://lib.purdue.edu/library-directory/>. Point the server at it:
+
+```env
+PRIMO_LIBRARIANS_FILE=/absolute/path/to/purduelibrary-mcp-server/data/purdue-librarians.json
+```
+
+Regenerate it when liaison assignments change by re-reading the directory
+page (each row is Subject | Name | ProfileURL | Phone | Email, grouped by
+librarian; parenthesized acronyms such as "(GIS)" become keywords), then run
+`python -m purduelibrary_mcp_server.profile_tools lint` to check the result.
+
+The general JSON shape is:
 
 ```json
 {
