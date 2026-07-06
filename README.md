@@ -16,6 +16,7 @@ and Unicode-safe handling for Chinese records.
 - Generate citations in APA 7th, Harvard, Chicago, IEEE, and Vancouver styles
 - Export records to BibTeX, RIS, or UTF-8-sig CSV
 - Reject invalid search scopes instead of silently falling back to Everything
+- Append a "Result landscape" facet summary (resource types, top subjects, creators, journals, languages, availability, publication years) so zero-result and too-many-result searches can be refined from data instead of guesswork
 
 ## Quick Start for Purdue
 
@@ -128,6 +129,7 @@ environment variables:
 | `PRIMO_DEFAULT_RESULTS` | `10` | Default results per search |
 | `PRIMO_LANGUAGE` | `en` | Primo language parameter |
 | `PRIMO_INCLUDE_UNAVAILABLE` | `false` | Include CDI records without full text access in search results |
+| `PRIMO_SEARCH_FACETS` | `true` | Fetch the facet summary after each search and append a "Result landscape" section (facets are only served for the Everything scope; other scopes omit the section) |
 
 See `.env.example` for a commented template.
 
