@@ -117,7 +117,7 @@ async def primo_search(
     field: str = "any",
     scope: str = "everything",
     sort_by: str = "rank",
-    limit: int = 10,
+    limit: int | None = None,
     offset: int = 0,
     resource_type: str | None = None,
     date_from: str | None = None,
@@ -137,6 +137,8 @@ async def primo_search(
     """
     client = _get_client(ctx)
     config = _get_config(ctx)
+    if limit is None:
+        limit = config.default_results
     response = await client.search(
         query=query,
         field=field,

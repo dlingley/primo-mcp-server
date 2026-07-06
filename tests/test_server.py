@@ -60,12 +60,15 @@ class _FakeClient:
         ]
 
 
-def _fake_context(client: _FakeClient | None = None) -> SimpleNamespace:
+def _fake_context(
+    client: _FakeClient | None = None, **config_overrides
+) -> SimpleNamespace:
     lifespan_context = {
         "client": client if client is not None else _FakeClient(),
         "config": PrimoConfig(
             base_url="https://example.test/primaws/rest/pub",
             _env_file=None,
+            **config_overrides,
         ),
     }
     return SimpleNamespace(
@@ -168,6 +171,24 @@ async def test_primo_search_forwards_compound_clauses_to_client():
 
     assert client.search_calls[0]["clauses"] == clauses
     assert "Unexpected error" not in output
+
+
+async def test_primo_search_uses_configured_default_results_when_limit_omitted():
+    client = _FakeClient()
+
+    await primo_search(_fake_context(client=client, default_results=7), "economics")
+
+    assert client.search_calls[0]["limit"] == 7
+
+
+async def test_primo_search_explicit_limit_overrides_configured_default():
+    client = _FakeClient()
+
+    await primo_search(
+        _fake_context(client=client, default_results=7), "economics", limit=3
+    )
+
+    assert client.search_calls[0]["limit"] == 3
 
 
 async def test_primo_search_forwards_facet_filters_to_client():

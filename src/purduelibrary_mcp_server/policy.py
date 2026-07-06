@@ -89,7 +89,9 @@ Args:
     field: Search field -- "any" (default), "title", "creator", "sub" (subject), "isbn", "issn", "oclcnum".
     scope: "everything" for local catalogue + subscribed databases, "catalogue" for local only, "books_videos" for the books/videos scope.
     sort_by: "rank" (relevance, default), "date" (newest first), "title" (alphabetical).
-    limit: Number of results to return (1-50, default 10).
+    limit: Number of results to return (1-50; when omitted, the server's
+        configured default applies -- PRIMO_DEFAULT_RESULTS, 10 unless
+        overridden).
     offset: Pagination offset (default 0). Use to get the next page of results.
     resource_type: Filter by type -- "books", "articles", "journals", "databases", "videos", "dissertations", "conference_proceedings".
     date_from: Start year filter (YYYY format, e.g. "2020").
