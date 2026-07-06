@@ -17,6 +17,7 @@ and Unicode-safe handling for Chinese records.
 - Export records to BibTeX, RIS, or UTF-8-sig CSV
 - Reject invalid search scopes instead of silently falling back to Everything
 - Append a "Result landscape" facet summary (resource types, top subjects, creators, journals, languages, availability, publication years) so zero-result and too-many-result searches can be refined from data instead of guesswork
+- Act on that landscape with generic facet filters: `facet_filters={"topic": "Economics"}` narrows to a facet value, `facet_exclusions` removes one (any Primo facet, e.g. topic, lang, jtitle, tlevel, library)
 - Compound boolean queries: multi-clause AND/OR/NOT with contains/exact/begins_with operators for known-item lookups (title AND creator), exact-title checks, and OR expansion
 - Show physical shelf locations (library, location, call number, availability status) and direct full-text access links (proxied resource links, Alma link-resolver openurl) in search results and record details
 
@@ -151,6 +152,8 @@ environment variables:
 | `PRIMO_SCOPE_LOCAL` | `MyInstitution` | Primo scope for local catalogue searches |
 | `PRIMO_SCOPE_BOOKS_VIDEOS` | `BooksVideos` | Primo scope for books/videos searches |
 | `PRIMO_REQUEST_TIMEOUT` | `30.0` | HTTP timeout in seconds |
+| `PRIMO_REQUEST_RETRY_ATTEMPTS` | `1` | Extra attempts after a transient Primo failure (timeout, connection error, HTTP 429/5xx); `0` disables retries |
+| `PRIMO_REQUEST_RETRY_MAX_DELAY` | `5.0` | Cap in seconds on the retry backoff, including a server-sent `Retry-After` |
 | `PRIMO_MAX_RESULTS_PER_REQUEST` | `50` | Maximum results per search request |
 | `PRIMO_DEFAULT_RESULTS` | `10` | Default results per search |
 | `PRIMO_LANGUAGE` | `en` | Primo language parameter |

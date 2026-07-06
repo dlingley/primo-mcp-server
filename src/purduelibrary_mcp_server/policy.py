@@ -103,6 +103,13 @@ Args:
         library's collection, e.g. for interlibrary loan or comprehensive
         literature mapping.
     online: Set to true to show only online resources.
+    facet_filters: Optional facet refinements as a {facet: value} object,
+        e.g. {"topic": "Economics", "lang": "eng"}. Use facet names and
+        values exactly as reported in the "Result landscape" section of a
+        previous search. Common facets: rtype, topic, creator, jtitle,
+        lang, tlevel, library.
+    facet_exclusions: Like facet_filters, but removes matching results
+        (e.g. {"rtype": "reviews"} to drop book reviews).
     clauses: Optional compound boolean query. Each clause has a value,
         optional field (any, title, creator, sub, isbn, issn, oclcnum),
         optional operator (contains, exact, begins_with), and optional

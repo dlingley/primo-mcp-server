@@ -1,6 +1,13 @@
 """Configuration for the Primo MCP server."""
 
+from importlib.metadata import PackageNotFoundError, version
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+try:
+    _PACKAGE_VERSION = version("purduelibrary-mcp-server")
+except PackageNotFoundError:  # running from a source tree without install
+    _PACKAGE_VERSION = "0.0.0"
 
 
 class PrimoConfig(BaseSettings):
@@ -37,7 +44,14 @@ class PrimoConfig(BaseSettings):
     max_results_per_request: int = 50
     default_results: int = 10
     language: str = "en"
-    user_agent: str = "purduelibrary-mcp-server/0.1.0"
+    user_agent: str = f"purduelibrary-mcp-server/{_PACKAGE_VERSION}"
+    # Transient-failure resilience for Primo API requests: retry this many
+    # extra times on timeouts, connection failures, HTTP 429, and HTTP 5xx,
+    # honouring a numeric Retry-After header when present (capped at
+    # request_retry_max_delay). Searches are interactive, so the cap stays
+    # small. 0 disables retries.
+    request_retry_attempts: int = 1
+    request_retry_max_delay: float = 5.0
     # Default for the Primo pcAvailability search parameter. When False,
     # CDI (Central Discovery Index) results are restricted to material the
     # institution has full text access to; when True the search is
@@ -69,5 +83,5 @@ class SpringshareConfig(BaseSettings):
     client_id: str | None = None
     client_secret: str | None = None
     request_timeout: float = 30.0
-    user_agent: str = "purduelibrary-mcp-server/0.1.0"
+    user_agent: str = f"purduelibrary-mcp-server/{_PACKAGE_VERSION}"
 

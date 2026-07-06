@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import functools
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 import httpx
 from mcp.server.fastmcp import Context, FastMCP
 
+from purduelibrary_mcp_server.citations import format_citation
 from purduelibrary_mcp_server.client import PrimoAPIError, PrimoClient
 from purduelibrary_mcp_server.config import PrimoConfig, SpringshareConfig
+from purduelibrary_mcp_server.exporters import export_bibtex, export_csv, export_ris
 from purduelibrary_mcp_server.formatter import (
     format_record_detail,
     format_search_results,
@@ -18,6 +22,8 @@ from purduelibrary_mcp_server.formatter import (
 from purduelibrary_mcp_server.policy import PRIMO_SEARCH_DESCRIPTION, SERVER_INSTRUCTIONS
 from purduelibrary_mcp_server.query import QueryClause
 from purduelibrary_mcp_server.springshare import SpringshareAPIError, SpringshareClient
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -50,6 +56,31 @@ mcp = FastMCP(
 )
 
 
+def _tool_error_boundary(action: str):
+    """Uniform error boundary for MCP tools.
+
+    Primo and Springshare API failures return their caller-facing message
+    ("Error {action}: ..."); anything else is a bug, so the traceback is
+    logged before the short message goes back to the caller -- without the
+    log, unexpected errors were invisible one-liners.
+    """
+
+    def decorate(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await func(*args, **kwargs)
+            except (PrimoAPIError, SpringshareAPIError) as e:
+                return f"Error {action}: {e}"
+            except Exception as e:
+                logger.exception("Unexpected error in %s", func.__name__)
+                return f"Unexpected error: {e}"
+
+        return wrapper
+
+    return decorate
+
+
 def _get_client(ctx: Context) -> PrimoClient:
     """Extract the PrimoClient from the lifespan context."""
     return ctx.request_context.lifespan_context["client"]
@@ -75,6 +106,7 @@ def _get_ss_config(ctx: Context) -> SpringshareConfig:
 # ---------------------------------------------------------------------------
 
 @mcp.tool(description=PRIMO_SEARCH_DESCRIPTION)
+@_tool_error_boundary("searching Primo")
 async def primo_search(
     ctx: Context,
     query: str,
@@ -90,6 +122,8 @@ async def primo_search(
     include_unavailable: bool | None = None,
     online: bool | None = None,
     clauses: list[QueryClause] | None = None,
+    facet_filters: dict[str, str] | None = None,
+    facet_exclusions: dict[str, str] | None = None,
 ) -> str:
     """Search Purdue University Libraries via Primo.
 
@@ -97,44 +131,41 @@ async def primo_search(
     argument reference live in policy.PRIMO_SEARCH_DESCRIPTION, which is
     served as this tool's description.
     """
-    try:
-        client = _get_client(ctx)
-        config = _get_config(ctx)
-        response = await client.search(
-            query=query,
-            field=field,
-            scope=scope,
-            sort_by=sort_by,
-            limit=limit,
-            offset=offset,
-            resource_type=resource_type,
-            date_from=date_from,
-            date_to=date_to,
-            peer_reviewed=peer_reviewed,
-            include_unavailable=include_unavailable,
-            online=online,
-            clauses=clauses,
-        )
-        return format_search_results(
-            response,
-            query,
-            offset,
-            config=config,
-            field=field,
-            scope=scope,
-            sort_by=sort_by,
-            resource_type=resource_type,
-            date_from=date_from,
-            date_to=date_to,
-            peer_reviewed=peer_reviewed,
-            include_unavailable=include_unavailable,
-            online=online,
-            clauses=clauses,
-        )
-    except PrimoAPIError as e:
-        return f"Error searching Primo: {e}"
-    except Exception as e:
-        return f"Unexpected error: {e}"
+    client = _get_client(ctx)
+    config = _get_config(ctx)
+    response = await client.search(
+        query=query,
+        field=field,
+        scope=scope,
+        sort_by=sort_by,
+        limit=limit,
+        offset=offset,
+        resource_type=resource_type,
+        date_from=date_from,
+        date_to=date_to,
+        peer_reviewed=peer_reviewed,
+        include_unavailable=include_unavailable,
+        online=online,
+        clauses=clauses,
+        facet_filters=facet_filters,
+        facet_exclusions=facet_exclusions,
+    )
+    return format_search_results(
+        response,
+        query,
+        offset,
+        config=config,
+        field=field,
+        scope=scope,
+        sort_by=sort_by,
+        resource_type=resource_type,
+        date_from=date_from,
+        date_to=date_to,
+        peer_reviewed=peer_reviewed,
+        include_unavailable=include_unavailable,
+        online=online,
+        clauses=clauses,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +173,7 @@ async def primo_search(
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
+@_tool_error_boundary("fetching record")
 async def primo_get_record(ctx: Context, record_id: str) -> str:
     """Get full details for a single library record.
 
@@ -154,21 +186,16 @@ async def primo_get_record(ctx: Context, record_id: str) -> str:
     Returns:
         Full record details including title, authors, abstract, identifiers, and availability.
     """
-    try:
-        client = _get_client(ctx)
-        config = _get_config(ctx)
-        record = await client.get_record(record_id)
-        if record is None:
-            return (
-                f'Record "{record_id}" not found. '
-                "It may have been removed, or the ID may be incorrect. "
-                "Try searching again with primo_search."
-            )
-        return format_record_detail(record, config=config)
-    except PrimoAPIError as e:
-        return f"Error fetching record: {e}"
-    except Exception as e:
-        return f"Unexpected error: {e}"
+    client = _get_client(ctx)
+    config = _get_config(ctx)
+    record = await client.get_record(record_id)
+    if record is None:
+        return (
+            f'Record "{record_id}" not found. '
+            "It may have been removed, or the ID may be incorrect. "
+            "Try searching again with primo_search."
+        )
+    return format_record_detail(record, config=config)
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +203,7 @@ async def primo_get_record(ctx: Context, record_id: str) -> str:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
+@_tool_error_boundary("getting suggestions")
 async def primo_suggest(ctx: Context, query: str) -> str:
     """Get autocomplete suggestions for a search term.
 
@@ -188,14 +216,9 @@ async def primo_suggest(ctx: Context, query: str) -> str:
     Returns:
         List of suggested search terms.
     """
-    try:
-        client = _get_client(ctx)
-        suggestions = await client.suggest(query)
-        return format_suggestions(suggestions, query)
-    except PrimoAPIError as e:
-        return f"Error getting suggestions: {e}"
-    except Exception as e:
-        return f"Unexpected error: {e}"
+    client = _get_client(ctx)
+    suggestions = await client.suggest(query)
+    return format_suggestions(suggestions, query)
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +226,7 @@ async def primo_suggest(ctx: Context, query: str) -> str:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
+@_tool_error_boundary("fetching records for citation")
 async def primo_cite(
     ctx: Context,
     record_ids: list[str],
@@ -217,31 +241,24 @@ async def primo_cite(
     Returns:
         Formatted citations. Note: always verify generated citations before submission.
     """
-    try:
-        from purduelibrary_mcp_server.citations import format_citation
+    valid_styles = {"apa7", "harvard", "chicago", "ieee", "vancouver"}
+    style = style.strip().lower()
+    if style not in valid_styles:
+        return f'Invalid citation style "{style}". Use one of: {", ".join(sorted(valid_styles))}'
 
-        valid_styles = {"apa7", "harvard", "chicago", "ieee", "vancouver"}
-        style = style.strip().lower()
-        if style not in valid_styles:
-            return f'Invalid citation style "{style}". Use one of: {", ".join(sorted(valid_styles))}'
+    client = _get_client(ctx)
+    records = await client.get_records(record_ids)
 
-        client = _get_client(ctx)
-        records = await client.get_records(record_ids)
+    if not records:
+        return "No records found for the provided IDs."
 
-        if not records:
-            return "No records found for the provided IDs."
+    citations = []
+    for record in records:
+        citations.append(format_citation(record, style))
 
-        citations = []
-        for record in records:
-            citations.append(format_citation(record, style))
-
-        result = "\n\n".join(citations)
-        result += "\n\n-- Note: verify citations before submission. Automated formatting may not cover all edge cases."
-        return result
-    except PrimoAPIError as e:
-        return f"Error fetching records for citation: {e}"
-    except Exception as e:
-        return f"Unexpected error: {e}"
+    result = "\n\n".join(citations)
+    result += "\n\n-- Note: verify citations before submission. Automated formatting may not cover all edge cases."
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -249,6 +266,7 @@ async def primo_cite(
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
+@_tool_error_boundary("fetching records for export")
 async def primo_export(
     ctx: Context,
     record_ids: list[str],
@@ -263,30 +281,23 @@ async def primo_export(
     Returns:
         Formatted export data ready for import into reference managers (Zotero, Mendeley, EndNote).
     """
-    try:
-        from purduelibrary_mcp_server.exporters import export_bibtex, export_csv, export_ris
+    valid_formats = {"bibtex", "ris", "csv"}
+    format = format.strip().lower()
+    if format not in valid_formats:
+        return f'Invalid format "{format}". Use one of: {", ".join(sorted(valid_formats))}'
 
-        valid_formats = {"bibtex", "ris", "csv"}
-        format = format.strip().lower()
-        if format not in valid_formats:
-            return f'Invalid format "{format}". Use one of: {", ".join(sorted(valid_formats))}'
+    client = _get_client(ctx)
+    records = await client.get_records(record_ids)
 
-        client = _get_client(ctx)
-        records = await client.get_records(record_ids)
+    if not records:
+        return "No records found for the provided IDs."
 
-        if not records:
-            return "No records found for the provided IDs."
-
-        if format == "bibtex":
-            return export_bibtex(records)
-        elif format == "ris":
-            return export_ris(records)
-        else:
-            return export_csv(records)
-    except PrimoAPIError as e:
-        return f"Error fetching records for export: {e}"
-    except Exception as e:
-        return f"Unexpected error: {e}"
+    if format == "bibtex":
+        return export_bibtex(records)
+    elif format == "ris":
+        return export_ris(records)
+    else:
+        return export_csv(records)
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +305,7 @@ async def primo_export(
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
+@_tool_error_boundary("searching Springshare")
 async def springshare_search_databases(ctx: Context, query: str) -> str:
     """Search curated Purdue University A-Z databases via LibGuides v1.2 API.
 
@@ -306,47 +318,42 @@ async def springshare_search_databases(ctx: Context, query: str) -> str:
     Returns:
         Formatted list of matching databases with descriptions and links.
     """
-    try:
-        client = _get_ss_client(ctx)
-        matches = await client.search_databases(query)
-        if not matches:
-            return f'No databases found matching "{query}" in the curated A-Z list.'
+    client = _get_ss_client(ctx)
+    matches = await client.search_databases(query)
+    if not matches:
+        return f'No databases found matching "{query}" in the curated A-Z list.'
 
-        lines = [f'Found {len(matches)} curated databases for "{query}":', ""]
-        for db in matches:
-            name = db.get("name", "")
-            url = db.get("url", "")
-            description = db.get("description", "")
-            vendor = db.get("az_vendor_name", "")
-            db_id = db.get("id")
-            
-            permalink = f"https://guides.lib.purdue.edu/az/databases?a={db_id}" if db_id else None
-            
-            title_line = f"### {name}"
-            if vendor:
-                title_line += f" (Provider: {vendor})"
-            lines.append(title_line)
-            
-            links = []
-            if url:
-                links.append(f"[Direct Link]({url})")
-            if permalink:
-                links.append(f"[LibGuides Permalink]({permalink})")
-            if links:
-                lines.append(f"**Links**: {' | '.join(links)}")
-            
-            if description:
-                lines.append(description)
-                
-            # Subjects
-            subjects = db.get("subjects", []) or []
-            subject_names = [sub.get("name", "") for sub in subjects if sub]
-            if subject_names:
-                lines.append(f"*Subjects: {'; '.join(subject_names)}*")
-            lines.append("") # Empty separator
-            
-        return "\n".join(lines).strip()
-    except SpringshareAPIError as e:
-        return f"Error searching Springshare: {e}"
-    except Exception as e:
-        return f"Unexpected error: {e}"
+    lines = [f'Found {len(matches)} curated databases for "{query}":', ""]
+    for db in matches:
+        name = db.get("name", "")
+        url = db.get("url", "")
+        description = db.get("description", "")
+        vendor = db.get("az_vendor_name", "")
+        db_id = db.get("id")
+
+        permalink = f"https://guides.lib.purdue.edu/az/databases?a={db_id}" if db_id else None
+
+        title_line = f"### {name}"
+        if vendor:
+            title_line += f" (Provider: {vendor})"
+        lines.append(title_line)
+
+        links = []
+        if url:
+            links.append(f"[Direct Link]({url})")
+        if permalink:
+            links.append(f"[LibGuides Permalink]({permalink})")
+        if links:
+            lines.append(f"**Links**: {' | '.join(links)}")
+
+        if description:
+            lines.append(description)
+
+        # Subjects
+        subjects = db.get("subjects", []) or []
+        subject_names = [sub.get("name", "") for sub in subjects if sub]
+        if subject_names:
+            lines.append(f"*Subjects: {'; '.join(subject_names)}*")
+        lines.append("")  # Empty separator
+
+    return "\n".join(lines).strip()

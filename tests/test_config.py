@@ -32,3 +32,12 @@ def test_default_config_is_purdue(monkeypatch):
     assert config.scope_local == "MyInstitution"
     assert config.scope_combined == "MyInst_and_CI"
     assert config.scope_books_videos == "BooksVideos"
+
+
+def test_user_agent_tracks_package_version():
+    from importlib.metadata import version
+
+    config = PrimoConfig(_env_file=None)
+    assert config.user_agent == (
+        f"purduelibrary-mcp-server/{version('purduelibrary-mcp-server')}"
+    )

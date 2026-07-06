@@ -168,3 +168,40 @@ async def test_primo_search_forwards_compound_clauses_to_client():
 
     assert client.search_calls[0]["clauses"] == clauses
     assert "Unexpected error" not in output
+
+
+async def test_primo_search_forwards_facet_filters_to_client():
+    client = _FakeClient()
+
+    output = await primo_search(
+        _fake_context(client=client),
+        "economics",
+        facet_filters={"topic": "Economics"},
+        facet_exclusions={"rtype": "reviews"},
+    )
+
+    assert client.search_calls[0]["facet_filters"] == {"topic": "Economics"}
+    assert client.search_calls[0]["facet_exclusions"] == {"rtype": "reviews"}
+    assert "Unexpected error" not in output
+
+
+async def test_unexpected_tool_error_is_logged_with_traceback(caplog):
+    import logging
+
+    class _ExplodingClient(_FakeClient):
+        async def search(self, **kwargs):
+            raise RuntimeError("boom")
+
+    with caplog.at_level(
+        logging.ERROR, logger="purduelibrary_mcp_server.server"
+    ):
+        output = await primo_search(
+            _fake_context(client=_ExplodingClient()),
+            "economics",
+        )
+
+    assert output == "Unexpected error: boom"
+    record = next(
+        r for r in caplog.records if "Unexpected error in primo_search" in r.message
+    )
+    assert record.exc_info is not None
