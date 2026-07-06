@@ -166,7 +166,7 @@ See `.env.example` for a commented template.
 
 From a Claude Code conversation:
 
-- "Search the catalogue for books on poverty in Singapore"
+- "Search the catalogue for books on rural poverty in Indiana"
 - "Search Everything for peer-reviewed articles on open access citation advantage"
 - "Do we have access to JSTOR?"
 - "search for databases with data on cost of living"
