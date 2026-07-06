@@ -136,3 +136,22 @@ async def test_primo_export_accepts_case_insensitive_format():
 
     assert "Unexpected error" not in output
     assert "@book{" in output
+
+
+async def test_primo_search_forwards_compound_clauses_to_client():
+    from purduelibrary_mcp_server.query import QueryClause
+
+    client = _FakeClient()
+    clauses = [
+        QueryClause(field="title", value="capital", connector="AND"),
+        QueryClause(field="creator", value="piketty"),
+    ]
+
+    output = await primo_search(
+        _fake_context(client=client),
+        "piketty capital",
+        clauses=clauses,
+    )
+
+    assert client.search_calls[0]["clauses"] == clauses
+    assert "Unexpected error" not in output

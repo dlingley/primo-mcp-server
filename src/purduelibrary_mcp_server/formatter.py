@@ -7,11 +7,13 @@ from urllib.parse import urlencode
 
 from purduelibrary_mcp_server.models import PrimoRecord, SearchResponse
 from purduelibrary_mcp_server.query import (
+    QueryClause,
     date_range_facet_value,
     normalise_resource_type,
     normalise_scope,
     normalise_search_field,
     normalise_sort_by,
+    query_clause_parts,
 )
 
 if TYPE_CHECKING:
@@ -155,6 +157,7 @@ def build_search_url(
     peer_reviewed: bool | None = None,
     include_unavailable: bool | None = None,
     online: bool | None = None,
+    clauses: list[QueryClause | dict] | None = None,
 ) -> str | None:
     """Build a direct Primo UI search URL for the search response."""
     if config is None or not config.vid:
@@ -170,14 +173,21 @@ def build_search_url(
         sort_by = normalise_sort_by(sort_by)
         resource_type = normalise_resource_type(resource_type)
         date_range = date_range_facet_value(date_from, date_to)
+        # The Primo UI advanced-search page takes one query param per clause.
+        clause_parts = query_clause_parts(clauses) if clauses else None
     except ValueError:
         return None
 
     tab, search_scope = scope_params
     if include_unavailable is None:
         include_unavailable = config.include_unavailable
+    query_params: list[tuple[str, str]] = (
+        [("query", part) for part in clause_parts] + [("mode", "advanced")]
+        if clause_parts
+        else [("query", f"{field},contains,{query}")]
+    )
     params: list[tuple[str, str]] = [
-        ("query", f"{field},contains,{query}"),
+        *query_params,
         ("tab", tab),
         ("search_scope", search_scope),
         ("vid", config.vid),
@@ -205,17 +215,18 @@ def _markdown_link_text(text: str) -> str:
 
 
 def _format_query_links(
-    query: str,
-    field: str,
+    query_label: str,
     search_url: str | None,
     *,
     has_results: bool,
 ) -> list[str]:
     if not search_url:
         return []
-    query_label = _markdown_link_text(f"{field},contains,{query}")
     result_label = "Results found" if has_results else "No results"
-    return ["Queries run:", f"- {result_label}: [{query_label}]({search_url})", ""]
+    label = _markdown_link_text(query_label)
+    return ["Queries run:", f"- {result_label}: [{label}]({search_url})", ""]
+
+
 # Facets shown in the "Result landscape" section, in display order. Other
 # facets Primo returns (newrecords, domain, attribute, library) are either
 # coded values or rarely useful for query refinement, so they are omitted.
@@ -307,6 +318,7 @@ def format_search_results(
     peer_reviewed: bool | None = None,
     include_unavailable: bool | None = None,
     online: bool | None = None,
+    clauses: list[QueryClause | dict] | None = None,
 ) -> str:
     """Format search results as a compact numbered list.
 
@@ -325,14 +337,18 @@ def format_search_results(
         peer_reviewed=peer_reviewed,
         include_unavailable=include_unavailable,
         online=online,
+        clauses=clauses,
     )
     try:
-        query_field = normalise_search_field(field)
+        query_label = (
+            ";".join(query_clause_parts(clauses))
+            if clauses
+            else f"{normalise_search_field(field)},contains,{query}"
+        )
     except ValueError:
-        query_field = field
+        query_label = f"{field},contains,{query}"
     query_links = _format_query_links(
-        query,
-        query_field,
+        query_label,
         search_url,
         has_results=bool(response.records),
     )

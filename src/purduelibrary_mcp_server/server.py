@@ -15,6 +15,7 @@ from purduelibrary_mcp_server.formatter import (
     format_search_results,
     format_suggestions,
 )
+from purduelibrary_mcp_server.query import QueryClause
 from purduelibrary_mcp_server.springshare import SpringshareAPIError, SpringshareClient
 
 
@@ -119,6 +120,7 @@ async def primo_search(
     peer_reviewed: bool | None = None,
     include_unavailable: bool | None = None,
     online: bool | None = None,
+    clauses: list[QueryClause] | None = None,
 ) -> str:
     """Search Purdue University Libraries via Primo.
 
@@ -185,6 +187,7 @@ async def primo_search(
             peer_reviewed=peer_reviewed,
             include_unavailable=include_unavailable,
             online=online,
+            clauses=clauses,
         )
         return format_search_results(
             response,
@@ -200,6 +203,7 @@ async def primo_search(
             peer_reviewed=peer_reviewed,
             include_unavailable=include_unavailable,
             online=online,
+            clauses=clauses,
         )
     except PrimoAPIError as e:
         return f"Error searching Primo: {e}"
