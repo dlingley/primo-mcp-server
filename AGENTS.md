@@ -80,6 +80,26 @@ combine all relevant results found across attempts and report the attempted
 queries.
 
 
+## Librarian Recommendation Policy
+
+Recommendations are validated against the configured JSON profile
+directory. Only configured librarian names may be returned; never invent
+or substitute names. `primo_recommend_librarians` is the explicit tool;
+`primo_search` appends inline recommendations by default (suppress with
+`recommend_librarians=false`); `primo_list_librarians` returns the complete
+configured directory when no recommendation clears the threshold or when
+the user asks who the librarians are. Deterministic keyword matching runs
+first, with an optional embedding fallback when keyword matches are weak
+or absent. Identifier-shaped queries (DOI, ISBN, ISSN, record IDs) skip
+recommendations entirely. Recommendation counts are capped at 3.
+
+When tuning matching weights or thresholds, run the golden-query benchmark
+before and after and report the delta:
+
+```bash
+python -m purduelibrary_mcp_server.evaluate_recommendations librarian-eval.json --keyword-only
+```
+
 ## Conventions
 
 - Australian English (en-AU)

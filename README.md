@@ -16,6 +16,7 @@ and Unicode-safe handling for Chinese records.
 - Generate citations in APA 7th, Harvard, Chicago, IEEE, and Vancouver styles
 - Export records to BibTeX, RIS, or UTF-8-sig CSV
 - Reject invalid search scopes instead of silently falling back to Everything
+- Recommend configured Purdue subject librarians from search queries and Primo metadata
 - Append a "Result landscape" facet summary (resource types, top subjects, creators, journals, languages, availability, publication years) so zero-result and too-many-result searches can be refined from data instead of guesswork
 - Act on that landscape with generic facet filters: `facet_filters={"topic": "Economics"}` narrows to a facet value, `facet_exclusions` removes one (any Primo facet, e.g. topic, lang, jtitle, tlevel, library)
 - Compound boolean queries: multi-clause AND/OR/NOT with contains/exact/begins_with operators for known-item lookups (title AND creator), exact-title checks, and OR expansion
@@ -61,6 +62,8 @@ pytest tests/ -v
 | `primo_search` | Search Primo with field, scope, type, date, and peer-review filters |
 | `primo_get_record` | Get full details for a record by Primo record ID |
 | `primo_suggest` | Get autocomplete suggestions |
+| `primo_recommend_librarians` | Recommend configured librarian help for a query or selected records |
+| `primo_list_librarians` | List every configured librarian profile with contact and coverage |
 | `primo_cite` | Generate formatted citations |
 | `primo_export` | Export records as BibTeX, RIS, or CSV |
 
@@ -159,8 +162,198 @@ environment variables:
 | `PRIMO_LANGUAGE` | `en` | Primo language parameter |
 | `PRIMO_INCLUDE_UNAVAILABLE` | `false` | Include CDI records without full text access in search results |
 | `PRIMO_SEARCH_FACETS` | `true` | Fetch the facet summary after each search and append a "Result landscape" section (facets are only served for the Everything scope; other scopes omit the section) |
+| `PRIMO_LIBRARIANS_FILE` | unset | External JSON librarian directory used for recommendations |
+| `PRIMO_INLINE_LIBRARIAN_RECOMMENDATIONS` | `true` | Append a bottom `Recommended librarian help:` section to `primo_search` output |
+| `PRIMO_LIBRARIAN_MIN_SCORE` | `5.0` | Minimum deterministic match score required before showing a recommendation |
+| `PRIMO_RECOMMEND_LOG_FILE` | unset | Opt-in JSONL log of recommendation outcomes (query, status, match/near-miss ids and scores) for triaging real queries into the golden eval set. Privacy note: this log captures raw user query text on local disk; enable it only with a retention policy in mind |
+| `PRIMO_LIBRARIAN_SEMANTIC_FALLBACK` | `false` | Enable the embedding path used when keyword matching finds nothing or matches weakly |
+| `PRIMO_EMBEDDING_PROVIDER` | `gemini` | `gemini` for Google's hosted API, `local` for an OpenAI-compatible local endpoint (Ollama, LM Studio, llama.cpp) with no quota |
+| `PRIMO_EMBEDDING_API_KEY` | unset | Google Gemini API key for the `gemini` provider (never sent to local endpoints) |
+| `PRIMO_EMBEDDING_LOCAL_API_KEY` | unset | Optional Bearer token for `local` runtimes that check one |
+| `PRIMO_EMBEDDING_MODEL` | `gemini-embedding-001` | Embedding model for the `gemini` provider |
+| `PRIMO_EMBEDDING_API_URL` | `https://generativelanguage.googleapis.com/v1beta` | Embedding API base URL for the `gemini` provider |
+| `PRIMO_EMBEDDING_LOCAL_URL` | `http://localhost:11434/v1` | OpenAI-compatible base URL for the `local` provider (default: Ollama) |
+| `PRIMO_EMBEDDING_LOCAL_MODEL` | `embeddinggemma` | Model name for the `local` provider |
+| `PRIMO_EMBEDDING_LOCAL_QUERY_PREFIX` | EmbeddingGemma query prompt | Prompt prefixed to query text (stands in for Gemini's taskType); for nomic-embed-text use `search_query: ` |
+| `PRIMO_EMBEDDING_LOCAL_DOCUMENT_PREFIX` | EmbeddingGemma document prompt | Prompt prefixed to profile terms; for nomic-embed-text use `search_document: `; changing it rebuilds the cache |
+| `PRIMO_LIBRARIAN_SEMANTIC_MIN_SIMILARITY` | `0.60` | Absolute cosine floor for a semantic recommendation |
+| `PRIMO_LIBRARIAN_SEMANTIC_MARGIN` | `0.08` | Self-calibrating margin: a match must exceed the mean similarity across all profiles by this much |
+| `PRIMO_LIBRARIAN_SEMANTIC_MARGIN_MIN_PROFILES` | `4` | Directory size at which the margin rule starts applying |
+| `PRIMO_LIBRARIAN_SEMANTIC_MIN_TOP_GAP` | `0.05` | Below the margin's profile minimum, the top match must lead the runner-up by this cosine gap (top-1 only) |
+| `PRIMO_LIBRARIAN_SEMANTIC_MIN_QUERY_TOKENS` | `2` | Skip the semantic fallback (no embedding call) for queries with fewer topical words; `1` disables the gate |
+| `PRIMO_LIBRARIAN_SEMANTIC_SECOND_GUESS_SCORE` | `12.0` | Keyword scores below this are second-guessed by the semantic path (`0` = strict miss-only cascade) |
+| `PRIMO_EMBEDDING_DIMENSIONS` | unset | Optional Matryoshka truncation (e.g. `768`) to cut cache size and latency |
+| `PRIMO_EMBEDDING_CACHE_FILE` | next to `PRIMO_LIBRARIANS_FILE` | Where profile embeddings are cached |
+| `PRIMO_EMBEDDING_TIMEOUT` | `10.0` | HTTP timeout for embedding requests in seconds |
+| `PRIMO_EMBEDDING_INLINE_TIMEOUT` | `2.5` | Tighter embedding budget for inline `primo_search` recommendations |
+| `PRIMO_EMBEDDING_RETRY_ATTEMPTS` | `3` | How many times an HTTP 429 is waited out and retried (never on the inline path) |
+| `PRIMO_EMBEDDING_RETRY_MAX_DELAY` | `65.0` | Cap in seconds on the wait honoured from the server's `Retry-After`/`RetryInfo` advice |
 
 See `.env.example` for a commented template.
+
+### Semantic fallback (optional)
+
+Keyword matching is exact (after light stemming), so a query whose wording
+doesn't overlap any profile term returns no recommendation. Enabling
+`PRIMO_LIBRARIAN_SEMANTIC_FALLBACK=true` adds an embedding-based path that runs
+when keyword matching **finds nothing or matches only weakly** (best score
+below `PRIMO_LIBRARIAN_SEMANTIC_SECOND_GUESS_SCORE`), so embeddings are
+computed only when keywords are unconvincing. Keyword matches stay primary and
+are never displaced; a passing semantic candidate for a different librarian is
+appended within the limit. It uses Google's `gemini-embedding-001` (free tier —
+get a key at <https://aistudio.google.com/apikey>). Each profile term is
+embedded as its own vector and a profile scores by its best term (max cosine),
+so a sharp hit on one configured topic is never averaged away by the rest of a
+large profile. Terms are embedded in batched `batchEmbedContents` requests,
+cached to a sidecar file keyed by term content (terms shared by several
+profiles are embedded once), and recomputed only when a term, the model, or
+the output dimensionality changes. The cache is written after every batch,
+so a rate-limited cold rebuild keeps its progress; rate-limit responses
+(HTTP 429) are waited out and retried, honouring the API's own
+`Retry-After`/`RetryInfo` advice, except on the latency-bounded inline
+`primo_search` path, which fails closed fast instead of sleeping.
+
+Acceptance is self-calibrating rather than a single tuned constant, with
+three regimes by directory size: with at least
+`PRIMO_LIBRARIAN_SEMANTIC_MARGIN_MIN_PROFILES` profiles the top matches must
+exceed the mean similarity across all profiles by
+`PRIMO_LIBRARIAN_SEMANTIC_MARGIN`; smaller directories accept only the top
+profile and only when it leads the runner-up by
+`PRIMO_LIBRARIAN_SEMANTIC_MIN_TOP_GAP`; a single-profile directory falls back
+to the absolute cosine floor alone. Queries with fewer than
+`PRIMO_LIBRARIAN_SEMANTIC_MIN_QUERY_TOKENS` topical words (stopwords and
+filler words don't count) skip the semantic path entirely -- short or vague
+queries are where cosine similarity is least reliable, and the skip happens
+before any embedding call is made. Skips are reported in the output the same
+way errors are, so they are never mistaken for a genuine no-match. To set the
+floor, margin, and gap empirically for your own directory, print the
+similarity distribution for representative test queries:
+
+```bash
+python -m purduelibrary_mcp_server.calibrate_embeddings "systematic review screening" "GIS data for urban planning"
+```
+
+#### Local embeddings (no quota)
+
+The Gemini free tier is rate-limited; `PRIMO_EMBEDDING_PROVIDER=local`
+switches the same fallback to any OpenAI-compatible `/embeddings` endpoint
+running on your own machine -- Ollama, LM Studio, or a llama.cpp server --
+with no quota and no key. The workload is small: a directory of up to ~30
+profiles embeds once (then cached), and each search costs one query
+embedding, so a small CPU model is entirely sufficient. With Ollama:
+
+```bash
+ollama pull embeddinggemma
+```
+
+```env
+PRIMO_LIBRARIAN_SEMANTIC_FALLBACK=true
+PRIMO_EMBEDDING_PROVIDER=local
+# Defaults already target Ollama + EmbeddingGemma; override for other
+# runtimes or models:
+# PRIMO_EMBEDDING_LOCAL_URL=http://localhost:1234/v1   (LM Studio)
+# PRIMO_EMBEDDING_LOCAL_MODEL=nomic-embed-text
+# PRIMO_EMBEDDING_LOCAL_QUERY_PREFIX=search_query: 
+# PRIMO_EMBEDDING_LOCAL_DOCUMENT_PREFIX=search_document: 
+```
+
+The query/document prefixes stand in for Gemini's `taskType` parameter
+(EmbeddingGemma and nomic both use asymmetric retrieval prompts); set both
+empty if your runtime applies its own prompt template. Two caveats: the
+cosine floor default (0.60) was tuned for `gemini-embedding-001`, so re-run
+`calibrate_embeddings` after switching models (the mean+margin rule
+self-calibrates, the floor does not); and the first request after the
+runtime starts may load the model into memory, which can exceed the tight
+inline-search budget -- the explicit `primo_recommend_librarians` tool has
+the full timeout and will warm it up.
+
+The layer fails closed — only configured profiles are ever returned, and any
+embedding error degrades to the keyword outcome — but not silently: errors are
+logged to stderr and surfaced in the output as a
+`semantic fallback errored` note so an invalid API key is distinguishable from
+a genuine no-match. Semantic matches are labelled
+`Status: matched (semantic fallback)` and report their cosine similarity so
+callers can reason about confidence. Identifier-shaped queries (DOIs, ISBNs,
+ISSNs, Alma/CDI record ids) skip librarian recommendations entirely on both
+paths.
+
+When `PRIMO_INLINE_LIBRARIAN_RECOMMENDATIONS=true` and a configured profile
+meets the score threshold, `primo_search` appends a bottom Markdown section
+headed `## Recommended librarian help:`. Callers should preserve this section when
+summarising Primo results.
+
+The recommendation display uses a fixed labelled format for each matched
+profile:
+
+```text
+## Recommended librarian help:
+
+Status: matched
+1. Name: [Accounting Librarian](https://lib.purdue.edu/people/example)
+   Title: Business Research Librarian
+   Contact: accounting@example.edu
+   Best for: Consult for accounting datasets, WRDS, and Compustat.
+   Evidence: matched terms: accounting; evidence fields: query
+Recommendations are limited to configured librarian profiles; do not invent or substitute names.
+```
+
+The `Name` value is always emitted as a Markdown link. The profile `url` is
+used first; if it is missing, the formatter falls back to a `mailto:` link
+when an email address is configured.
+
+When no recommendation clears the confidence threshold, the `no_match`
+output still shows the closest below-threshold profiles WITH their matching
+evidence, explicitly labelled as not validated -- so any librarian a caller
+passes on to the user always carries evidence, and a weak candidate can
+never be silently presented as a confident match. When nothing matched even
+weakly, the output directs callers to `primo_list_librarians`, which
+returns the complete configured directory (name, title, contact, schools,
+best-for areas, and a sample of subjects) so a caller can still route the
+user to a real contact without inventing one.
+
+Librarian recommendations require an external JSON file. No real profiles are
+bundled. The minimum shape is:
+
+```json
+{
+  "librarians": [
+    {
+      "id": "accounting",
+      "name": "Accounting Librarian",
+      "title": "Business Research Librarian",
+      "email": "accounting@example.edu",
+      "url": "https://lib.purdue.edu/people/example",
+      "subjects": ["accounting", "audit fees"],
+      "keywords": ["corporate governance"],
+      "aliases": ["financial reporting"],
+      "best_for": ["accounting datasets", "WRDS", "Compustat"],
+      "schools": ["School of Management"],
+      "resource_types": ["databases"],
+      "notes": "Consult for accounting and audit research."
+    }
+  ]
+}
+```
+
+### Maintaining the profile directory
+
+The `primo-profiles` CLI keeps the JSON directory reproducible from a CSV
+source and reports curation problems that weaken matching:
+
+```bash
+# Build the JSON directory from a CSV source (semicolon- or comma-separated
+# multi-value cells; accepts singular or plural column headers)
+python -m purduelibrary_mcp_server.profile_tools convert librarian-profile.csv librarian-profile.json
+
+# Check the configured directory (or an explicit path) for problems:
+# filler-only terms, term variants that normalise identically, terms listed
+# by nearly every profile, unmatchable profiles, missing contact details,
+# and deny-list terms broad enough to always fire
+python -m purduelibrary_mcp_server.profile_tools lint
+```
+
+`lint` exits 0 when clean, 1 with findings, and 2 when the directory cannot
+be read, so it can gate a profile-update workflow.
 
 ## Usage Examples
 

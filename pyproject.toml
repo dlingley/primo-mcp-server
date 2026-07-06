@@ -20,6 +20,7 @@ dependencies = [
     "httpx>=0.28.0",
     "pydantic>=2.12.0",
     "pydantic-settings>=2.13.0",
+    "snowballstemmer>=3.0.0",
 ]
 
 [project.urls]
@@ -37,6 +38,8 @@ dev = [
 
 [project.scripts]
 purduelibrary-mcp-server = "purduelibrary_mcp_server:main"
+purduelibrary-profiles = "purduelibrary_mcp_server.profile_tools:main"
+purduelibrary-eval = "purduelibrary_mcp_server.evaluate_recommendations:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/purduelibrary_mcp_server"]

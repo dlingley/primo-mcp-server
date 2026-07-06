@@ -56,6 +56,12 @@ ZERO_RESULT_GUIDANCE_LINES = [
     "and report the attempted queries.",
 ]
 
+LIBRARIAN_POLICY_TEXT = (
+    "Librarian recommendations are limited to configured profile IDs; do "
+    "not invent or substitute names."
+)
+
+
 def _bullets(lines: list[str]) -> str:
     return "\n".join(f"- {line}" for line in lines)
 
@@ -76,7 +82,10 @@ SERVER_INSTRUCTIONS = (
     "boolean clauses for known-item and precision searches), "
     "primo_get_record for full details, primo_suggest for autocomplete, "
     "springshare_search_databases for the curated A-Z database list, "
-    "primo_cite for citations, and primo_export for BibTeX/RIS/CSV export."
+    "primo_recommend_librarians for validated librarian recommendations, "
+    "primo_list_librarians for the full configured librarian directory, "
+    "primo_cite for citations, and primo_export for BibTeX/RIS/CSV export. "
+    + LIBRARIAN_POLICY_TEXT
 )
 
 PRIMO_SEARCH_DESCRIPTION = (
@@ -112,6 +121,13 @@ Args:
         lang, tlevel, library.
     facet_exclusions: Like facet_filters, but removes matching results
         (e.g. {"rtype": "reviews"} to drop book reviews).
+    recommend_librarians: Set to false to suppress inline librarian
+        recommendations for this search. Inline recommendations also
+        require PRIMO_INLINE_LIBRARIAN_RECOMMENDATIONS=true. When shown,
+        callers should include the bottom "Recommended librarian help:"
+        section when summarising Primo results.
+    librarian_limit: Number of librarian recommendations to include
+        inline. Defaults to 2 and is capped at 3.
     clauses: Optional compound boolean query. Each clause has a value,
         optional field (any, title, creator, sub, isbn, issn, oclcnum),
         optional operator (contains, exact, begins_with), and optional
@@ -124,7 +140,8 @@ Args:
 
 Returns:
     Formatted search results with title, authors, year, identifiers,
-    availability, shelf locations and access links where known, and a
-    "Result landscape" facet summary when Primo serves facets.
+    availability, shelf locations and access links where known, a "Result
+    landscape" facet summary when Primo serves facets, and any bottom
+    "Recommended librarian help:" section.
 """
 )
