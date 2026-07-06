@@ -16,7 +16,10 @@ This is the canonical agent guidance file for this fork.
 ## Key Files
 
 - `src/purduelibrary_mcp_server/server.py` -- MCP tool definitions and lifespan
+- `src/purduelibrary_mcp_server/policy.py` -- Single source of truth for the caller-facing scope and zero-result policy prose (server instructions, primo_search description, and zero-result output are all composed from it)
 - `src/purduelibrary_mcp_server/client.py` -- Primo API HTTP client
+- `src/purduelibrary_mcp_server/config.py` -- pydantic-settings configuration (PRIMO_ env prefix)
+- `src/purduelibrary_mcp_server/query.py` -- scope, field, sort, and resource type alias normalisation
 - `src/purduelibrary_mcp_server/models.py` -- Pydantic models for PNX response normalisation
 - `src/purduelibrary_mcp_server/formatter.py` -- Compact text output for LLM context
 - `src/purduelibrary_mcp_server/citations.py` -- Citation formatting (APA7, Harvard, Chicago, IEEE, Vancouver)
@@ -44,6 +47,10 @@ agent behaviour should remain Purdue-first for this fork.
 - PRIMO_TAB_BOOKS_VIDEOS / PRIMO_SCOPE_BOOKS_VIDEOS -- Purdue books/videos search
 
 ## Search Scope Policy
+
+This section mirrors `src/purduelibrary_mcp_server/policy.py`, which is the single
+source of truth the server actually serves to callers. When changing the
+policy, edit `policy.py` first and keep this section and README.md in step.
 
 Use Primo as the evidence source for library holdings, subscriptions, and
 access checks. Do not use websites, LibGuides, or general web pages as
