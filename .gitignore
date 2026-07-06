@@ -11,3 +11,4 @@ build/
 venv/
 
 *-embeddings.json
+.DS_Store
