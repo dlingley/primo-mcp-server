@@ -9,6 +9,7 @@ from typing import AsyncIterator
 
 import httpx
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.types import ToolAnnotations
 
 from purduelibrary_mcp_server.citations import format_citation
 from purduelibrary_mcp_server.client import PrimoAPIError, PrimoClient
@@ -52,6 +53,8 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[dict]:
             "ss_config": ss_config,
         }
 
+
+_READ_ONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=True)
 
 mcp = FastMCP(
     "primo",
@@ -109,7 +112,7 @@ def _get_ss_config(ctx: Context) -> SpringshareConfig:
 # Tool 1: primo_search
 # ---------------------------------------------------------------------------
 
-@mcp.tool(description=PRIMO_SEARCH_DESCRIPTION)
+@mcp.tool(description=PRIMO_SEARCH_DESCRIPTION, annotations=_READ_ONLY)
 @_tool_error_boundary("searching Primo")
 async def primo_search(
     ctx: Context,
@@ -178,7 +181,7 @@ async def primo_search(
 # Tool 2: primo_get_record
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 @_tool_error_boundary("fetching record")
 async def primo_get_record(ctx: Context, record_id: str) -> str:
     """Get full details for a single library record.
@@ -208,7 +211,7 @@ async def primo_get_record(ctx: Context, record_id: str) -> str:
 # Tool 3: primo_suggest
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 @_tool_error_boundary("getting suggestions")
 async def primo_suggest(ctx: Context, query: str) -> str:
     """Get autocomplete suggestions for a search term.
@@ -231,7 +234,7 @@ async def primo_suggest(ctx: Context, query: str) -> str:
 # Tool 4: primo_cite
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 @_tool_error_boundary("fetching records for citation")
 async def primo_cite(
     ctx: Context,
@@ -271,7 +274,7 @@ async def primo_cite(
 # Tool 5: primo_export
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 @_tool_error_boundary("fetching records for export")
 async def primo_export(
     ctx: Context,
@@ -310,7 +313,7 @@ async def primo_export(
 # Tool 6: springshare_search_databases
 # ---------------------------------------------------------------------------
 
-@mcp.tool()
+@mcp.tool(annotations=_READ_ONLY)
 @_tool_error_boundary("searching Springshare")
 async def springshare_search_databases(ctx: Context, query: str) -> str:
     """Search curated Purdue University A-Z databases via LibGuides v1.2 API.
