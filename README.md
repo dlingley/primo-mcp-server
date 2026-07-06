@@ -167,7 +167,7 @@ environment variables:
 | `PRIMO_LIBRARIAN_MIN_SCORE` | `5.0` | Minimum deterministic match score required before showing a recommendation |
 | `PRIMO_RECOMMEND_LOG_FILE` | unset | Opt-in JSONL log of recommendation outcomes (query, status, match/near-miss ids and scores) for triaging real queries into the golden eval set. Privacy note: this log captures raw user query text on local disk; enable it only with a retention policy in mind |
 | `PRIMO_LIBRARIAN_SEMANTIC_FALLBACK` | `false` | Enable the embedding path used when keyword matching finds nothing or matches weakly |
-| `PRIMO_EMBEDDING_PROVIDER` | `gemini` | `gemini` for Google's hosted API, `local` for an OpenAI-compatible local endpoint (Ollama, LM Studio, llama.cpp) with no quota |
+| `PRIMO_EMBEDDING_PROVIDER` | `gemini` | `gemini` for Google's hosted API, `local` for an OpenAI-compatible local endpoint (Ollama, LM Studio, llama.cpp) with no quota, `genai_studio` for Purdue's hosted GenAI Studio |
 | `PRIMO_EMBEDDING_API_KEY` | unset | Google Gemini API key for the `gemini` provider (never sent to local endpoints) |
 | `PRIMO_EMBEDDING_LOCAL_API_KEY` | unset | Optional Bearer token for `local` runtimes that check one |
 | `PRIMO_EMBEDDING_MODEL` | `gemini-embedding-001` | Embedding model for the `gemini` provider |
@@ -176,6 +176,11 @@ environment variables:
 | `PRIMO_EMBEDDING_LOCAL_MODEL` | `embeddinggemma` | Model name for the `local` provider |
 | `PRIMO_EMBEDDING_LOCAL_QUERY_PREFIX` | EmbeddingGemma query prompt | Prompt prefixed to query text (stands in for Gemini's taskType); for nomic-embed-text use `search_query: ` |
 | `PRIMO_EMBEDDING_LOCAL_DOCUMENT_PREFIX` | EmbeddingGemma document prompt | Prompt prefixed to profile terms; for nomic-embed-text use `search_document: `; changing it rebuilds the cache |
+| `PRIMO_EMBEDDING_GENAI_URL` | `https://genai.rcac.purdue.edu` | Purdue GenAI Studio base URL for the `genai_studio` provider |
+| `PRIMO_EMBEDDING_GENAI_MODEL` | `nomic-embed-text:latest` | Ollama model name for the `genai_studio` provider |
+| `PRIMO_EMBEDDING_GENAI_API_KEY` | unset | GenAI Studio API key (Settings > Account > API keys); required for the `genai_studio` provider and never sent elsewhere |
+| `PRIMO_EMBEDDING_GENAI_QUERY_PREFIX` | `search_query: ` | Prompt prefixed to query text for the `genai_studio` provider |
+| `PRIMO_EMBEDDING_GENAI_DOCUMENT_PREFIX` | `search_document: ` | Prompt prefixed to profile terms for the `genai_studio` provider; changing it rebuilds the cache |
 | `PRIMO_LIBRARIAN_SEMANTIC_MIN_SIMILARITY` | `0.60` | Absolute cosine floor for a semantic recommendation |
 | `PRIMO_LIBRARIAN_SEMANTIC_MARGIN` | `0.08` | Self-calibrating margin: a match must exceed the mean similarity across all profiles by this much |
 | `PRIMO_LIBRARIAN_SEMANTIC_MARGIN_MIN_PROFILES` | `4` | Directory size at which the margin rule starts applying |
@@ -266,6 +271,30 @@ self-calibrates, the floor does not); and the first request after the
 runtime starts may load the model into memory, which can exceed the tight
 inline-search budget -- the explicit `primo_recommend_librarians` tool has
 the full timeout and will warm it up.
+
+#### Purdue GenAI Studio embeddings
+
+`PRIMO_EMBEDDING_PROVIDER=genai_studio` uses Purdue's hosted
+[GenAI Studio](https://www.rcac.purdue.edu/knowledge/genaistudio) (an Open
+WebUI instance at <https://genai.rcac.purdue.edu>) -- no local runtime and no
+Google account needed, just a Purdue login. Embeddings go through GenAI
+Studio's Ollama proxy (`POST /ollama/api/embed`), which requires an API key
+generated in the GenAI Studio UI under **Settings > Account > API keys**:
+
+```env
+PRIMO_LIBRARIAN_SEMANTIC_FALLBACK=true
+PRIMO_EMBEDDING_PROVIDER=genai_studio
+PRIMO_EMBEDDING_GENAI_API_KEY=your-genai-studio-key
+# Defaults target nomic-embed-text; list the models your account can reach:
+#   curl -H "Authorization: Bearer $KEY" https://genai.rcac.purdue.edu/ollama/api/tags
+# PRIMO_EMBEDDING_GENAI_MODEL=nomic-embed-text:latest
+```
+
+The same caveats as the local provider apply: the cosine floor was tuned for
+`gemini-embedding-001`, so run `calibrate_embeddings` after switching models,
+and adjust the query/document prefixes when the model is not nomic-embed-text.
+If the proxy route returns 404, the instance's Ollama passthrough is not
+enabled for your account -- fall back to `local` with Ollama, or ask RCAC.
 
 The layer fails closed — only configured profiles are ever returned, and any
 embedding error degrades to the keyword outcome — but not silently: errors are

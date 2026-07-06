@@ -989,6 +989,121 @@ async def test_semantic_fallback_runs_on_local_provider(tmp_path):
     assert [m.librarian.id for m in result.matches] == ["preservation"]
 
 
+def _genai_config(tmp_path, **overrides) -> PrimoConfig:
+    values = {
+        "librarian_semantic_fallback": True,
+        "embedding_provider": "genai_studio",
+        "embedding_genai_api_key": "genai-key",
+        "embedding_cache_file": str(tmp_path / "embeddings.json"),
+        "librarian_semantic_min_similarity": 0.5,
+    }
+    values.update(overrides)
+    return PrimoConfig(**values, _env_file=None)
+
+
+@respx.mock
+async def test_genai_studio_embed_posts_ollama_shape_with_bearer_key(tmp_path):
+    from purduelibrary_mcp_server.librarian_embeddings import _genai_studio_embed
+
+    route = respx.post(
+        "https://genai.rcac.purdue.edu/ollama/api/embed"
+    ).mock(
+        return_value=httpx.Response(
+            200, json={"embeddings": [[0.1, 0.2], [0.4, 0.5]]}
+        )
+    )
+
+    vectors = await _genai_studio_embed(
+        ["hello", "world"],
+        "RETRIEVAL_DOCUMENT",
+        # Gemini and local keys must never be the ones sent to GenAI Studio.
+        config=_genai_config(
+            tmp_path,
+            embedding_api_key="gemini-key",
+            embedding_local_api_key="local-key",
+        ),
+    )
+
+    assert vectors == [[0.1, 0.2], [0.4, 0.5]]
+    request = route.calls.last.request
+    assert request.headers["authorization"] == "Bearer genai-key"
+    body = json.loads(request.content)
+    assert body["model"] == "nomic-embed-text:latest"
+    assert body["input"] == [
+        "search_document: hello",
+        "search_document: world",
+    ]
+
+
+@respx.mock
+async def test_genai_studio_embed_applies_query_prefix(tmp_path):
+    from purduelibrary_mcp_server.librarian_embeddings import _genai_studio_embed
+
+    route = respx.post(
+        "https://genai.rcac.purdue.edu/ollama/api/embed"
+    ).mock(return_value=httpx.Response(200, json={"embeddings": [[0.1]]}))
+
+    await _genai_studio_embed(
+        ["digital preservation"],
+        "RETRIEVAL_QUERY",
+        config=_genai_config(tmp_path),
+    )
+
+    body = json.loads(route.calls.last.request.content)
+    assert body["input"] == ["search_query: digital preservation"]
+
+
+async def test_genai_studio_requires_api_key(tmp_path):
+    result = await semantic_fallback(
+        _directory(),
+        "digital preservation of archives",
+        [],
+        _genai_config(tmp_path, embedding_genai_api_key=None),
+    )
+
+    assert result.matches == []
+    assert result.error == "RuntimeError"
+
+
+@respx.mock
+async def test_semantic_fallback_runs_on_genai_studio_provider(tmp_path):
+    def respond(request):
+        texts = json.loads(request.content)["input"]
+        embeddings = [
+            [1.0, 0.0] if "preservation" in text.lower() else [0.0, 1.0]
+            for text in texts
+        ]
+        return httpx.Response(200, json={"embeddings": embeddings})
+
+    respx.post("https://genai.rcac.purdue.edu/ollama/api/embed").mock(
+        side_effect=respond
+    )
+
+    result = await semantic_fallback(
+        _directory(),
+        "digital preservation of archives",
+        [],
+        _genai_config(tmp_path),
+    )
+
+    assert result.error is None
+    assert [m.librarian.id for m in result.matches] == ["preservation"]
+
+
+def test_model_key_isolates_genai_space(tmp_path):
+    from purduelibrary_mcp_server.librarian_embeddings import _model_key
+
+    gemini = PrimoConfig(embedding_api_key="k", _env_file=None)
+    genai = _genai_config(tmp_path)
+    local = _local_config(tmp_path)
+    assert _model_key(genai) != _model_key(gemini)
+    assert _model_key(genai) != _model_key(local)
+    reprompted = _genai_config(
+        tmp_path, embedding_genai_document_prefix="clustering: "
+    )
+    assert _model_key(genai) != _model_key(reprompted)
+
+
 async def test_unknown_provider_fails_closed(tmp_path):
     result = await semantic_fallback(
         _directory(),

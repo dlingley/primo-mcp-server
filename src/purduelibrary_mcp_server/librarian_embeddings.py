@@ -151,10 +151,16 @@ def _model_key(config: PrimoConfig) -> str:
     switching provider, model, or prompt always rebuilds rather than mixing
     vectors from two spaces.
     """
-    if _provider(config) == "local":
+    provider = _provider(config)
+    if provider == "local":
         base = (
             f"local:{config.embedding_local_model}"
             f"|{config.embedding_local_document_prefix}"
+        )
+    elif provider == "genai_studio":
+        base = (
+            f"genai_studio:{config.embedding_genai_model}"
+            f"|{config.embedding_genai_document_prefix}"
         )
     else:
         base = config.embedding_model
@@ -353,8 +359,56 @@ async def _local_embed(
     return vectors
 
 
+async def _genai_studio_embed(
+    texts: Sequence[str],
+    task_type: str,
+    *,
+    config: PrimoConfig,
+    timeout: float | None = None,
+) -> list[list[float]]:
+    """Embed ``texts`` via Purdue GenAI Studio's Ollama proxy.
+
+    GenAI Studio (https://genai.rcac.purdue.edu) is an Open WebUI instance;
+    Open WebUI exposes embedding generation only through its transparent
+    Ollama passthrough (POST /ollama/api/embed), not an OpenAI-style
+    /v1/embeddings route. The native Ollama embed API takes a batched
+    ``input`` list and returns ``embeddings`` in input order. A GenAI
+    Studio API key is always required (the instance is authenticated);
+    like the local provider, the configured query/document prefixes stand
+    in for a taskType parameter.
+    """
+    if not config.embedding_genai_api_key:
+        raise RuntimeError("embedding_genai_api_key is not configured")
+    base = config.embedding_genai_url.rstrip("/")
+    url = f"{base}/ollama/api/embed"
+    prefix = (
+        config.embedding_genai_query_prefix
+        if task_type == _TASK_QUERY
+        else config.embedding_genai_document_prefix
+    )
+    headers = {"Authorization": f"Bearer {config.embedding_genai_api_key}"}
+
+    vectors: list[list[float]] = []
+    async with httpx.AsyncClient(
+        timeout=timeout if timeout is not None else config.embedding_timeout,
+        headers=headers,
+    ) as client:
+        for start in range(0, len(texts), _MAX_BATCH_SIZE):
+            chunk = texts[start : start + _MAX_BATCH_SIZE]
+            response = await client.post(
+                url,
+                json={
+                    "model": config.embedding_genai_model,
+                    "input": [prefix + text for text in chunk],
+                },
+            )
+            response.raise_for_status()
+            vectors.extend(response.json()["embeddings"])
+    return vectors
+
+
 def _provider(config: PrimoConfig) -> str:
-    return config.embedding_provider.strip().lower()
+    return config.embedding_provider.strip().lower().replace("-", "_")
 
 
 def _default_embedder(
@@ -375,9 +429,13 @@ def _default_embedder(
         return lambda texts, task_type: _local_embed(
             texts, task_type, config=config, timeout=timeout
         )
+    if provider == "genai_studio":
+        return lambda texts, task_type: _genai_studio_embed(
+            texts, task_type, config=config, timeout=timeout
+        )
     raise RuntimeError(
         f"Unknown embedding provider {config.embedding_provider!r}; "
-        'use "gemini" or "local".'
+        'use "gemini", "local", or "genai_studio".'
     )
 
 
@@ -521,11 +579,13 @@ _query_vector_cache: "dict[tuple[str, str, str], list[float]]" = {}
 
 
 def _query_cache_key(config: PrimoConfig, text: str) -> tuple[str, str, str]:
-    query_prefix = (
-        config.embedding_local_query_prefix
-        if _provider(config) == "local"
-        else ""
-    )
+    provider = _provider(config)
+    if provider == "local":
+        query_prefix = config.embedding_local_query_prefix
+    elif provider == "genai_studio":
+        query_prefix = config.embedding_genai_query_prefix
+    else:
+        query_prefix = ""
     return (_model_key(config), query_prefix, text)
 
 

@@ -111,6 +111,22 @@ class PrimoConfig(BaseSettings):
     embedding_local_api_key: str | None = None
     embedding_local_query_prefix: str = "task: search result | query: "
     embedding_local_document_prefix: str = "title: none | text: "
+    # Settings for embedding_provider="genai_studio": Purdue's hosted
+    # GenAI Studio (https://genai.rcac.purdue.edu, an Open WebUI instance).
+    # Embeddings go through its Ollama proxy (POST /ollama/api/embed) and
+    # always require an API key, generated in GenAI Studio under
+    # Settings > Account > API keys. The default model is Ollama's
+    # nomic-embed-text; list the models your account can reach with
+    #   curl -H "Authorization: Bearer $KEY" \
+    #        https://genai.rcac.purdue.edu/ollama/api/tags
+    # The prefixes are nomic-embed-text's asymmetric retrieval prompts;
+    # adjust them when switching models. The key is deliberately separate
+    # from embedding_api_key (Gemini-only) and embedding_local_api_key.
+    embedding_genai_url: str = "https://genai.rcac.purdue.edu"
+    embedding_genai_model: str = "nomic-embed-text:latest"
+    embedding_genai_api_key: str | None = None
+    embedding_genai_query_prefix: str = "search_query: "
+    embedding_genai_document_prefix: str = "search_document: "
     # Absolute cosine sanity floor. gemini-embedding-001 is anisotropic
     # (unrelated text sits near ~0.5), so this floor alone is fragile across
     # directory sizes; the self-calibrating margin below does the real work
