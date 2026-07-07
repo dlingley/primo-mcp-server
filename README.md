@@ -292,13 +292,16 @@ PRIMO_EMBEDDING_GENAI_API_KEY=your-genai-studio-key
 
 **Verified against the live service (July 2026):** the endpoint works, but
 GenAI Studio currently hosts no dedicated embedding model -- only chat
-models, embedded through Ollama's mean-pooling path (`llama3.2:latest`,
-`llama3.1`, `llama3.3:70b`, `phi4`, `codellama`, `llava`, and
-`deepseek-r1:1.5b` return vectors; `gemma3`, `qwen3`, and `gpt-oss` return
-500). Chat-model embeddings proved unusable for librarian routing in
-calibration (the correct librarian never ranked first on test queries;
-similarities cluster in a narrow band), so **leave
-`PRIMO_LIBRARIAN_SEMANTIC_FALLBACK=false` with this provider for now**. The
+models, embedded through Ollama's mean-pooling path. Every embed-capable
+hosted model was quality-tested against the bundled Purdue directory
+(llama3.1/3.2/3.3 including both 70B builds, phi4, codellama, llava, qwq,
+qwen2.5:72b, and all four deepseek-r1 distills): across 4 routing queries
+each, none ranked the correct librarian first even once -- model size did
+not help, and some degenerate to one profile topping every query. The
+remaining models cannot embed at all (`gemma3*`, `qwen3*`, `devstral`
+return 500; `llama4` and `gpt-oss` return 400; `mistral` and `medgemma`
+time out). So **leave `PRIMO_LIBRARIAN_SEMANTIC_FALLBACK=false` with this
+provider for now**. The
 keyword matcher carries the feature well on its own. If RCAC adds a real
 embedding model (e.g. `nomic-embed-text`), set `PRIMO_EMBEDDING_GENAI_MODEL`
 to it, run `calibrate_embeddings` to set the floor, and enable the fallback.
